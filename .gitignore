@@ -1,0 +1,25 @@
+# Rust build artifacts
+/target/
+
+# Rustfmt backup files
+**/*.rs.bk
+
+# Debug symbols
+*.pdb
+
+# macOS system files
+.DS_Store
+
+# Log files
+*.log
+
+# Runtime data
+*.pid
+*.seed
+*.pid.lock
+
+# Crash reports
+*.dump
+
+# Any local configuration files
+config.local.*
