@@ -24,6 +24,15 @@ impl Detector {
     ///
     /// # Arguments
     /// * `confidence_threshold` - Minimum confidence level (0.0-1.0) for piece detection
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use studfinder::detector::Detector;
+    /// 
+    /// let detector = Detector::new(0.8);
+    /// ```
+    #[must_use]
     pub fn new(confidence_threshold: f32) -> Self {
         info!("Initializing detector with confidence threshold: {}", confidence_threshold);
         
@@ -48,6 +57,29 @@ impl Detector {
     ///
     /// # Returns
     /// * `Result<Vec<Piece>>` - A list of identified pieces or an error
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if:
+    /// - The image file cannot be opened or read
+    /// - The image validation fails (e.g., image is too small)
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use studfinder::detector::Detector;
+    /// use std::path::Path;
+    /// 
+    /// # async fn example() -> anyhow::Result<()> {
+    /// let detector = Detector::new(0.8);
+    /// let pieces = detector.detect_pieces(Path::new("test_data/test.jpg"))?;
+    /// 
+    /// for piece in pieces {
+    ///     println!("Detected: {} {} ({})", piece.color, piece.part_number, piece.confidence);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn detect_pieces<P: AsRef<Path>>(&self, image_path: P) -> Result<Vec<Piece>> {
         debug!("Starting piece detection for: {}", image_path.as_ref().display());
         
@@ -93,7 +125,10 @@ impl Detector {
         Ok(pieces)
     }
     
-    
+    /// Find the best matching template for the image
+    /// 
+    /// In a real implementation, this would use OpenCV for template matching.
+    /// Currently, it returns a simulated result.
     fn find_best_template(&self, _img: &DynamicImage) -> (String, f32) {
         // In a real implementation, this would use OpenCV for template matching
         // For now, we'll simulate with a simple implementation
@@ -108,6 +143,11 @@ impl Detector {
         (part_number, confidence)
     }
     
+    /// Validate that the image meets minimum requirements
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the image dimensions are below the minimum requirements
     fn validate_image(&self, img: &DynamicImage) -> Result<()> {
         let (width, height) = img.dimensions();
         debug!("Validating image dimensions: {}x{}", width, height);
@@ -121,6 +161,9 @@ impl Detector {
         Ok(())
     }
     
+    /// Categorize a part based on its part number
+    /// 
+    /// Maps part numbers to their corresponding categories (e.g., Brick, Plate, Tile)
     fn categorize_part(&self, part_number: &str) -> String {
         let category = match part_number {
             "3001" => "Brick",
@@ -139,7 +182,7 @@ impl ImageProcessor for Detector {
     }
     
     fn validate_image(&self, image: &DynamicImage) -> Result<()> {
-        Detector::validate_image(self, image)
+        Self::validate_image(self, image)
     }
     
     fn clone_box(&self) -> Box<dyn ImageProcessor> {

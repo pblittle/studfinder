@@ -11,6 +11,14 @@ pub struct Config {
     pub confidence_threshold: f32,
 }
 
+/// Initialize configuration from default locations
+///
+/// # Errors
+///
+/// Return
+/// Initis an error if:
+/// - Unable to determine the project directories
+/// - Failed to create the data directory
 pub fn init_config() -> anyhow::Result<Config> {
     if let Some(proj_dirs) = ProjectDirs::from("com", "studfinder", "studfinder") {
         let data_dir = proj_dirs.data_dir();

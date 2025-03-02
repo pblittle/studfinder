@@ -1,5 +1,6 @@
 use crate::{Piece, ScanQuality};
 use crate::image_processor::ImageProcessor;
+use crate::color_detector::{ColorDetector, ColorDetectorConfig, ColorStandard};
 use anyhow::{Result, Context};
 use image::{DynamicImage, GenericImageView};
 use std::path::Path;
@@ -21,6 +22,7 @@ struct ScanConfig {
     color_threshold: f32,
     min_confidence: f32,
     min_region_size: u32,
+    color_detector_config: ColorDetectorConfig,
 }
 
 impl Scanner {
@@ -44,23 +46,36 @@ impl Scanner {
                 color_threshold: 0.6,
                 min_confidence: 0.7,
                 min_region_size: 50,
+                color_detector_config: ColorDetectorConfig {
+                    threshold: 0.6,
+                    standard: ColorStandard::BrickLink,
+                },
             },
             ScanQuality::Balanced => ScanConfig {
                 color_threshold: 0.75,
                 min_confidence: 0.8,
                 min_region_size: 100,
+                color_detector_config: ColorDetectorConfig {
+                    threshold: 0.75,
+                    standard: ColorStandard::BrickLink,
+                },
             },
             ScanQuality::Accurate => ScanConfig {
                 color_threshold: 0.85,
                 min_confidence: 0.9,
                 min_region_size: 150,
+                color_detector_config: ColorDetectorConfig {
+                    threshold: 0.85,
+                    standard: ColorStandard::BrickLink,
+                },
             },
         };
 
         debug!("Scanner configuration: threshold={}, confidence={}, size={}",
             config.color_threshold,
             config.min_confidence,
-            config.min_region_size
+            config.min_region_size,
+            config.color_detector_config.threshold
         );
 
         Self { config }
@@ -106,14 +121,16 @@ impl Scanner {
         self.validate_image(&img)?;
         debug!("Image validation passed");
 
-        let (color, confidence) = self.analyze_color_with_confidence(&img);
+        // Use the ColorDetector to analyze the color
+        let color_detector = ColorDetector::with_config(self.config.color_detector_config.clone());
+        let color_info = color_detector.detect_color(&img);
 
         if confidence < self.config.min_confidence {
             debug!("Color detection confidence too low: {:.2}", confidence);
             return Ok(vec![]);
         }
 
-        info!("Detected color: {} (confidence: {:.2}%)", color, confidence * 100.0);
+        info!("Detected color: {} (confidence: {:.2}%)", color_info.name, color_info.confidence * 100.0);
 
         let part_number = self.detect_part_type(&img);
         let category = self.categorize_part(&part_number);
@@ -136,69 +153,6 @@ impl Scanner {
     /// # Errors
     /// 
     /// Returns an error if the image dimensions are below the minimum requirements
-            colors[0] += pixel[0] as u32;
-            colors[1] += pixel[1] as u32;
-            colors[2] += pixel[2] as u32;
-            pixel_count += 1;
-        }
-
-        if pixel_count == 0 {
-            debug!("No pixels found in image");
-            return ("Unknown".to_string(), 0.0);
-        }
-
-        let avg_r = (colors[0] / pixel_count) as f32;
-        let avg_g = (colors[1] / pixel_count) as f32;
-        let avg_b = (colors[2] / pixel_count) as f32;
-
-        debug!("Average RGB values: ({:.1}, {:.1}, {:.1})", avg_r, avg_g, avg_b);
-
-        let threshold = self.config.color_threshold * 255.0;
-        let low_threshold = (1.0 - self.config.color_threshold) * 255.0;
-
-        let (color, confidence) = match () {
-            // Red: high R, low G&B
-            _ if avg_r > threshold && avg_g < low_threshold && avg_b < low_threshold => {
-                let conf = (avg_r - avg_g.max(avg_b)) / 255.0;
-                ("Red", conf)
-            },
-            // Green: high G, low R&B
-            _ if avg_r < low_threshold && avg_g > threshold && avg_b < low_threshold => {
-                let conf = (avg_g - avg_r.max(avg_b)) / 255.0;
-                ("Green", conf)
-            },
-            // Blue: high B, low R&G
-            _ if avg_r < low_threshold && avg_g < low_threshold && avg_b > threshold => {
-                let conf = (avg_b - avg_r.max(avg_g)) / 255.0;
-                ("Blue", conf)
-            },
-            // Yellow: high R&G, low B
-            _ if avg_r > threshold && avg_g > threshold && avg_b < low_threshold => {
-                let conf = (avg_r.min(avg_g) - avg_b) / 255.0;
-                ("Yellow", conf.min(1.0))
-            },
-            // White: all high
-            _ if avg_r > threshold && avg_g > threshold && avg_b > threshold => {
-                let min_val = avg_r.min(avg_g).min(avg_b);
-                let conf = min_val / 255.0;
-                ("White", conf)
-            },
-            // Black: all low
-            _ if avg_r < low_threshold && avg_g < low_threshold && avg_b < low_threshold => {
-                let max_val = avg_r.max(avg_g).max(avg_b);
-                let conf = 1.0 - (max_val / low_threshold);
-                ("Black", conf)
-            },
-            _ => {
-                debug!("Could not determine color definitively");
-                ("Unknown", 0.0)
-            },
-        };
-
-        debug!("Color detection result: {} with {:.2}% confidence", color, confidence * 100.0);
-        (color.to_string(), confidence)
-    }
-
     fn validate_image(&self, img: &DynamicImage) -> Result<()> {
         let (width, height) = img.dimensions();
         debug!("Validating image dimensions: {}x{}", width, height);
