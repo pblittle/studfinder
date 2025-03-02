@@ -9,6 +9,7 @@ pub mod detector;
 pub mod error;
 pub mod image_processor;
 pub mod scanner;
+pub mod color_detector;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ProcessorType {
@@ -248,6 +249,9 @@ mod tests {
         let piece = finder.scan_image(image_path).await.unwrap();
         assert_eq!(piece.color, "Red");
         assert!(piece.confidence > 0.8);
+
+        // Add the piece to the inventory
+        finder.add_piece(piece).unwrap();
 
         // Test inventory
         let pieces = finder.list_inventory().unwrap();
