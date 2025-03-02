@@ -1,5 +1,6 @@
-use crate::{Piece, ScanQuality};
+use crate::Piece;
 use crate::image_processor::ImageProcessor;
+use crate::color_detector::{ColorDetector, ColorDetectorConfig, ColorStandard};
 use anyhow::{Result, Context};
 use image::{DynamicImage, GenericImageView};
 use std::path::{Path, PathBuf};
@@ -13,6 +14,7 @@ use uuid::Uuid;
 /// to identify specific LEGO pieces based on their visual characteristics.
 #[derive(Clone)]
 pub struct Detector {
+    #[allow(dead_code)]
     templates: HashMap<String, PathBuf>,
     confidence_threshold: f32,
 }
@@ -58,14 +60,18 @@ impl Detector {
         // In a real implementation, this would use OpenCV for template matching
         // For now, we'll simulate detection with a simple implementation
         
-        // Detect color (reusing logic from Scanner for consistency)
-        let (color, color_confidence) = self.analyze_color(&img);
+        // Use the ColorDetector to analyze the color
+        let color_detector = ColorDetector::with_config(ColorDetectorConfig {
+            threshold: 0.75,
+            standard: ColorStandard::BrickLink,
+        });
+        let color_info = color_detector.detect_color(&img);
         
         // Find best matching template
         let (part_number, match_confidence) = self.find_best_template(&img);
         
         // Calculate overall confidence
-        let confidence = (color_confidence + match_confidence) / 2.0;
+        let confidence = (color_info.confidence + match_confidence) / 2.0;
         
         if confidence < self.confidence_threshold {
             debug!("Detection confidence too low: {:.2}", confidence);
@@ -77,7 +83,7 @@ impl Detector {
         let pieces = vec![Piece {
             id: Uuid::new_v4().to_string(),
             part_number,
-            color,
+            color: color_info.name,
             category,
             quantity: 1,
             confidence,
@@ -87,73 +93,6 @@ impl Detector {
         Ok(pieces)
     }
     
-    fn analyze_color(&self, img: &DynamicImage) -> (String, f32) {
-        let mut colors = [0u32; 3];
-        let mut pixel_count = 0;
-
-        for pixel in img.to_rgb8().pixels() {
-            colors[0] += pixel[0] as u32;
-            colors[1] += pixel[1] as u32;
-            colors[2] += pixel[2] as u32;
-            pixel_count += 1;
-        }
-
-        if pixel_count == 0 {
-            debug!("No pixels found in image");
-            return ("Unknown".to_string(), 0.0);
-        }
-
-        let avg_r = (colors[0] / pixel_count) as f32;
-        let avg_g = (colors[1] / pixel_count) as f32;
-        let avg_b = (colors[2] / pixel_count) as f32;
-
-        debug!("Average RGB values: ({:.1}, {:.1}, {:.1})", avg_r, avg_g, avg_b);
-
-        let threshold = 0.75 * 255.0;
-        let low_threshold = 0.25 * 255.0;
-
-        let (color, confidence) = match () {
-            // Red: high R, low G&B
-            _ if avg_r > threshold && avg_g < low_threshold && avg_b < low_threshold => {
-                let conf = (avg_r - avg_g.max(avg_b)) / 255.0;
-                ("Red", conf)
-            },
-            // Green: high G, low R&B
-            _ if avg_r < low_threshold && avg_g > threshold && avg_b < low_threshold => {
-                let conf = (avg_g - avg_r.max(avg_b)) / 255.0;
-                ("Green", conf)
-            },
-            // Blue: high B, low R&G
-            _ if avg_r < low_threshold && avg_g < low_threshold && avg_b > threshold => {
-                let conf = (avg_b - avg_r.max(avg_g)) / 255.0;
-                ("Blue", conf)
-            },
-            // Yellow: high R&G, low B
-            _ if avg_r > threshold && avg_g > threshold && avg_b < low_threshold => {
-                let conf = (avg_r.min(avg_g) - avg_b) / 255.0;
-                ("Yellow", conf.min(1.0))
-            },
-            // White: all high
-            _ if avg_r > threshold && avg_g > threshold && avg_b > threshold => {
-                let min_val = avg_r.min(avg_g).min(avg_b);
-                let conf = min_val / 255.0;
-                ("White", conf)
-            },
-            // Black: all low
-            _ if avg_r < low_threshold && avg_g < low_threshold && avg_b < low_threshold => {
-                let max_val = avg_r.max(avg_g).max(avg_b);
-                let conf = 1.0 - (max_val / low_threshold);
-                ("Black", conf)
-            },
-            _ => {
-                debug!("Could not determine color definitively");
-                ("Unknown", 0.0)
-            },
-        };
-
-        debug!("Color detection result: {} with {:.2}% confidence", color, confidence * 100.0);
-        (color.to_string(), confidence)
-    }
     
     fn find_best_template(&self, _img: &DynamicImage) -> (String, f32) {
         // In a real implementation, this would use OpenCV for template matching
@@ -235,7 +174,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let path = temp_dir.path().join("test.jpg");
         
-        let mut img = ImageBuffer::new(200, 200);
+        let mut img = image::RgbImage::new(200, 200);
         for pixel in img.pixels_mut() {
             *pixel = Rgb([255, 0, 0]);  // Pure red
         }
