@@ -121,16 +121,31 @@ cargo run -- inventory list
 
 ## Architecture
 
-Studfinder follows a modular architecture with the following components:
+Studfinder follows a modular architecture organized into three main modules:
+
+### Module Structure
+
+- **core**: Core domain types and traits
+
+  - `piece.rs`: Defines the `Piece` struct and related types
+  - `config.rs`: Configuration management
+
+- **processing**: Image processing implementations
+
+  - `processor.rs`: Defines the `ImageProcessor` trait
+  - `scanner.rs`: Color-based processor implementation
+  - `detector.rs`: Template-matching processor implementation
+  - `color.rs`: Color detection and analysis
+
+- **storage**: Persistence layer
+  - `database.rs`: SQLite database operations
+  - `export.rs`: Import/export functionality
 
 ### Core Components
 
 - **StudFinder**: Main application class that coordinates the other components
-- **ImageProcessor**: Trait defining the interface for image processing strategies
-- **Scanner**: Color-based processor that analyzes dominant colors in images
-- **Detector**: Template-matching processor that uses reference images for identification
-- **ColorDetector**: Analyzes images to determine predominant colors
-- **Database**: Manages the local inventory using SQLite
+- **Piece**: Represents a LEGO piece with its properties (part number, color, category, etc.)
+- **Config**: Application configuration
 
 ### Image Processing
 
@@ -170,19 +185,26 @@ The `ColorDetector` component provides color analysis with support for different
 
 Color detection includes confidence scoring based on color purity and matching against known LEGO colors.
 
-### Database
+### Storage
 
-The database layer uses SQLite with a versioned schema:
+The storage layer is divided into two main components:
 
-- Version 1: Basic piece storage (id, part_number, color, category, quantity)
-- Version 2: Added confidence scoring and indexes for performance
+1. **Database**: Manages the local inventory using SQLite with a versioned schema:
 
-The database supports:
-- Adding/updating pieces
-- Retrieving pieces by ID
-- Listing all pieces
-- Updating quantities
-- Deleting pieces
+   - Version 1: Basic piece storage (id, part_number, color, category, quantity)
+   - Version 2: Added confidence scoring and indexes for performance
+
+   The database supports:
+
+   - Adding/updating pieces
+   - Retrieving pieces by ID
+   - Listing all pieces
+   - Updating quantities
+   - Deleting pieces
+
+2. **ExportManager**: Handles import/export operations with support for:
+   - JSON format
+   - CSV format
 
 ### Error Handling
 
@@ -194,27 +216,12 @@ Studfinder uses a comprehensive error handling approach:
 - Specific error variants for different failure modes
 
 Error types include:
+
 - Database errors
 - Image processing errors
 - I/O errors
 - Validation errors
 - Configuration errors
-
-## Contributing
-
-Contributions are welcome! Here are some ways you can contribute:
-
-- Improve the image processing algorithms
-- Add support for more LEGO piece types
-- Enhance the color detection system
-- Optimize performance
-- Add new features
-
-Please follow these guidelines:
-- Write clean, maintainable code
-- Include appropriate tests
-- Follow Rust best practices
-- Document your code
 
 ## License
 
