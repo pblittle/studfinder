@@ -1,7 +1,7 @@
-use std::path::Path;
+use crate::Piece;
 use anyhow::Result;
 use image::DynamicImage;
-use crate::Piece;
+use std::path::Path;
 
 /// Trait for image processing implementations
 ///
