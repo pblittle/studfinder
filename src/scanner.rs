@@ -19,7 +19,6 @@ pub struct Scanner {
 /// Configuration for the scanner
 #[derive(Clone, Debug)]
 struct ScanConfig {
-    color_threshold: f32,
     min_confidence: f32,
     min_region_size: u32,
     color_detector_config: ColorDetectorConfig,
@@ -38,12 +37,12 @@ impl Scanner {
     /// 
     /// let scanner = Scanner::new(ScanQuality::Balanced);
     /// ```
+    #[must_use]
     pub fn new(quality: ScanQuality) -> Self {
         info!("Initializing scanner with quality: {:?}", quality);
 
         let config = match quality {
             ScanQuality::Fast => ScanConfig {
-                color_threshold: 0.6,
                 min_confidence: 0.7,
                 min_region_size: 50,
                 color_detector_config: ColorDetectorConfig {
@@ -52,7 +51,6 @@ impl Scanner {
                 },
             },
             ScanQuality::Balanced => ScanConfig {
-                color_threshold: 0.75,
                 min_confidence: 0.8,
                 min_region_size: 100,
                 color_detector_config: ColorDetectorConfig {
@@ -61,7 +59,6 @@ impl Scanner {
                 },
             },
             ScanQuality::Accurate => ScanConfig {
-                color_threshold: 0.85,
                 min_confidence: 0.9,
                 min_region_size: 150,
                 color_detector_config: ColorDetectorConfig {
@@ -71,8 +68,7 @@ impl Scanner {
             },
         };
 
-        debug!("Scanner configuration: threshold={}, confidence={}, size={}",
-            config.color_threshold,
+        debug!("Scanner configuration: confidence={}, size={}, color_threshold={}",
             config.min_confidence,
             config.min_region_size,
             config.color_detector_config.threshold
@@ -125,8 +121,8 @@ impl Scanner {
         let color_detector = ColorDetector::with_config(self.config.color_detector_config.clone());
         let color_info = color_detector.detect_color(&img);
 
-        if confidence < self.config.min_confidence {
-            debug!("Color detection confidence too low: {:.2}", confidence);
+        if color_info.confidence < self.config.min_confidence {
+            debug!("Color detection confidence too low: {:.2}", color_info.confidence);
             return Ok(vec![]);
         }
 
@@ -138,10 +134,10 @@ impl Scanner {
         let pieces = vec![Piece {
             id: Uuid::new_v4().to_string(),
             part_number,
-            color,
+            color: color_info.name,
             category,
             quantity: 1,
-            confidence,
+            confidence: color_info.confidence,
         }];
 
         debug!("Created piece record: {:?}", pieces[0]);
@@ -200,7 +196,7 @@ impl ImageProcessor for Scanner {
     
     fn validate_image(&self, image: &DynamicImage) -> Result<()> {
         // Call the struct's validate_image method
-        Scanner::validate_image(self, image)
+        Self::validate_image(self, image)
     }
     
     fn clone_box(&self) -> Box<dyn ImageProcessor> {
@@ -211,13 +207,13 @@ impl ImageProcessor for Scanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::{ImageBuffer, Rgb};
+    use image::Rgb;
     use tempfile;
 
     #[test]
     fn test_scan_qualities() {
         for quality in [ScanQuality::Fast, ScanQuality::Balanced, ScanQuality::Accurate] {
-            let mut img = ImageBuffer::new(200, 200);
+            let mut img = image::RgbImage::new(200, 200);
             for pixel in img.pixels_mut() {
                 *pixel = Rgb([255, 0, 0]);  // Pure red
             }
@@ -226,7 +222,7 @@ mod tests {
             let path = temp_dir.path().join("red_test.png");
             img.save(&path).unwrap();
 
-            let scanner = Scanner::new(quality);
+            let scanner = Scanner::new(quality.clone());
             let result = scanner.scan_image(path).unwrap();
 
             assert_eq!(result.len(), 1);
@@ -247,7 +243,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let path = temp_dir.path().join("test.jpg");
         
-        let mut img = ImageBuffer::new(200, 200);
+        let mut img = image::RgbImage::new(200, 200);
         for pixel in img.pixels_mut() {
             *pixel = Rgb([255, 0, 0]);  // Pure red
         }
