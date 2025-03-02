@@ -10,6 +10,12 @@ pub struct Database {
 }
 
 impl Database {
+    /// Creates a new Database instance with the specified path
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Failed to open the database connection
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         debug!("Opening database at: {:?}", path.as_ref());
         let conn = Connection::open(path)
@@ -20,13 +26,21 @@ impl Database {
         Ok(db)
     }
 
+    /// Initializes the database schema, creating tables and applying migrations
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Failed to acquire the database lock
+    /// - Failed to start a transaction
+    /// - Failed to create or modify database tables
+    /// - Failed to commit the transaction
     pub fn init(&self) -> Result<()> {
         debug!("Initializing database schema");
 
-        let mut conn = self.conn.lock()
+        // Acquire lock and start transaction in two steps
             .map_err(|_| anyhow::anyhow!("Failed to acquire database lock"))?;
 
-        // Start a transaction for schema initialization
         let tx = conn.transaction()
             .context("Failed to start transaction")?;
 
@@ -96,6 +110,16 @@ impl Database {
         Ok(())
     }
 
+    /// Resets the database schema, dropping all tables and reinitializing
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Failed to acquire the database lock
+    /// - Failed to start a transaction
+    /// - Failed to drop tables
+    /// - Failed to commit the transaction
+    /// - Failed to reinitialize the schema
     pub fn reset(&self) -> Result<()> {
         info!("Resetting database schema");
 
@@ -118,13 +142,21 @@ impl Database {
         Ok(())
     }
 
+    /// Adds a piece to the database or updates its quantity if it already exists
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Failed to acquire the database lock
+    /// - Failed to start a transaction
+    /// - Failed to query, insert, or update the piece
+    /// - Failed to commit the transaction
     pub fn add_piece(&self, piece: &Piece) -> Result<()> {
         debug!("Adding piece to database: {}", piece);
 
-        let mut conn = self.conn.lock()
+        // Acquire lock and start transaction in two steps
             .map_err(|_| anyhow::anyhow!("Failed to acquire database lock"))?;
 
-        // Start a transaction for the entire operation
         let tx = conn.transaction()
             .context("Failed to start transaction")?;
 
@@ -180,6 +212,12 @@ impl Database {
         Ok(())
     }
 
+    /// Retrieves a piece from the database by its ID
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Failed to acquire the database lock
     pub fn get_piece(&self, id: &str) -> Result<Option<Piece>> {
         debug!("Fetching piece with id: {}", id);
 
@@ -206,6 +244,14 @@ impl Database {
         Ok(piece)
     }
 
+    /// Lists all pieces in the inventory
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Failed to acquire the database lock
+    /// - Failed to prepare or execute the query
+    /// - Failed to collect the results
     pub fn list_pieces(&self) -> Result<Vec<Piece>> {
         debug!("Listing all pieces in inventory");
 
@@ -232,6 +278,13 @@ impl Database {
         Ok(pieces)
     }
 
+    /// Updates the quantity of a piece in the database
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Failed to acquire the database lock
+    /// - Failed to execute the update
     pub fn update_quantity(&self, id: &str, quantity: i32) -> Result<()> {
         debug!("Updating quantity for piece {}: {}", id, quantity);
 
@@ -246,6 +299,13 @@ impl Database {
         Ok(())
     }
 
+    /// Deletes a piece from the database
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Failed to acquire the database lock
+    /// - Failed to execute the delete
     pub fn delete_piece(&self, id: &str) -> Result<()> {
         debug!("Deleting piece with id: {}", id);
 
@@ -260,6 +320,13 @@ impl Database {
         Ok(())
     }
 
+    /// Gets the current schema version
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Failed to acquire the database lock
+    /// - Failed to query the schema version
     fn get_schema_version(&self) -> Result<i32> {
         let conn = self.conn.lock()
             .map_err(|_| anyhow::anyhow!("Failed to acquire database lock"))?;

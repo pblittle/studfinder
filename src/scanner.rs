@@ -6,11 +6,16 @@ use std::path::Path;
 use tracing::{debug, info};
 use uuid::Uuid;
 
+/// Scanner implementation for LEGO piece identification
+///
+/// This implementation focuses on color detection and basic shape analysis
+/// to identify LEGO pieces in images.
 #[derive(Clone)]
 pub struct Scanner {
     config: ScanConfig,
 }
 
+/// Configuration for the scanner
 #[derive(Clone, Debug)]
 struct ScanConfig {
     color_threshold: f32,
@@ -19,6 +24,18 @@ struct ScanConfig {
 }
 
 impl Scanner {
+    /// Create a new Scanner with the specified quality level
+    ///
+    /// # Arguments
+    /// * `quality` - The scan quality level (Fast, Balanced, or Accurate)
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use studfinder::{scanner::Scanner, ScanQuality};
+    /// 
+    /// let scanner = Scanner::new(ScanQuality::Balanced);
+    /// ```
     pub fn new(quality: ScanQuality) -> Self {
         info!("Initializing scanner with quality: {:?}", quality);
 
@@ -49,6 +66,36 @@ impl Scanner {
         Self { config }
     }
 
+    /// Scan an image to identify LEGO pieces
+    ///
+    /// # Arguments
+    /// * `path` - Path to the image file to scan
+    ///
+    /// # Returns
+    /// * `Result<Vec<Piece>>` - A list of identified pieces or an error
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if:
+    /// - The image file cannot be opened or read
+    /// - The image validation fails (e.g., image is too small)
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use studfinder::{scanner::Scanner, ScanQuality};
+    /// use std::path::Path;
+    /// 
+    /// # async fn example() -> anyhow::Result<()> {
+    /// let scanner = Scanner::new(ScanQuality::Balanced);
+    /// let pieces = scanner.scan_image(Path::new("test_data/test.jpg"))?;
+    /// 
+    /// for piece in pieces {
+    ///     println!("Detected: {} {} ({})", piece.color, piece.part_number, piece.confidence);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn scan_image<P: AsRef<Path>>(&self, path: P) -> Result<Vec<Piece>> {
         debug!("Starting image scan for: {}", path.as_ref().display());
 
@@ -84,11 +131,11 @@ impl Scanner {
         Ok(pieces)
     }
 
-    fn analyze_color_with_confidence(&self, img: &DynamicImage) -> (String, f32) {
-        let mut colors = [0u32; 3];
-        let mut pixel_count = 0;
-
-        for pixel in img.to_rgb8().pixels() {
+    /// Validate that the image meets minimum requirements
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the image dimensions are below the minimum requirements
             colors[0] += pixel[0] as u32;
             colors[1] += pixel[1] as u32;
             colors[2] += pixel[2] as u32;
@@ -167,12 +214,19 @@ impl Scanner {
         Ok(())
     }
 
+    /// Detect the part type from the image
+    /// 
+    /// In a real implementation, this would use more sophisticated image analysis.
+    /// Currently, it returns a simulated result.
     fn detect_part_type(&self, _img: &DynamicImage) -> String {
         let part_number = "3001";
         debug!("Part type detection returned: {}", part_number);
         part_number.to_string()
     }
 
+    /// Categorize a part based on its part number
+    /// 
+    /// Maps part numbers to their corresponding categories (e.g., Brick, Plate, Tile)
     fn categorize_part(&self, part_number: &str) -> String {
         let category = match part_number {
             "3001" => "Brick",
