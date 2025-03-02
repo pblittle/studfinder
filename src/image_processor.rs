@@ -1,5 +1,5 @@
 use crate::Piece;
-use anyhow::Result;
+use crate::error::Result;
 use image::DynamicImage;
 use std::path::Path;
 

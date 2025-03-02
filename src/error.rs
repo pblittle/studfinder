@@ -7,9 +7,41 @@ use thiserror::Error;
 /// troubleshooting and error handling.
 #[derive(Error, Debug)]
 pub enum StudFinderError {
-    #[error("Database error: {0}")]
-    Database(#[from] rusqlite::Error),
+    /// Error occurred during a database operation
+    #[error("Database error during {operation}: {source}")]
+    Database {
+        /// The database operation that was being performed
+        operation: String,
+        /// The source error from the database layer
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 
+    /// Error occurred during a database migration
+    #[error("Database migration to version {version} failed during {operation}: {source}")]
+    Migration {
+        /// The target schema version of the migration
+        version: i32,
+        /// The specific operation within the migration that failed
+        operation: String,
+        /// The source error from the database layer
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    /// Failed to acquire the database lock
+    #[error("Failed to acquire database lock during {operation}")]
+    DatabaseLockFailed {
+        /// The operation that was attempting to acquire the lock
+        operation: String,
+    },
+
+    /// Database reset operation failed
+    #[error("Database reset failed: {source}")]
+    DatabaseResetFailed {
+        /// The source error that caused the reset to fail
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    /// Error occurred during image processing
     #[error("Image processing error: {0}")]
     Image(#[from] image::ImageError),
 
@@ -64,8 +96,8 @@ impl From<serde_json::Error> for StudFinderError {
     }
 }
 
-impl From<std::sync::PoisonError<std::sync::MutexGuard<'_, rusqlite::Connection>>> for StudFinderError {
-    fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'_, rusqlite::Connection>>) -> Self {
-        StudFinderError::DatabaseLockError
+impl From<anyhow::Error> for StudFinderError {
+    fn from(err: anyhow::Error) -> Self {
+        StudFinderError::Config(format!("Unexpected error: {}", err))
     }
 }

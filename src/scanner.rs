@@ -1,7 +1,7 @@
 use crate::{Piece, ScanQuality};
 use crate::image_processor::ImageProcessor;
 use crate::color_detector::{ColorDetector, ColorDetectorConfig, ColorStandard};
-use anyhow::{Result, Context};
+use crate::error::{Result, StudFinderError};
 use image::{DynamicImage, GenericImageView};
 use std::path::Path;
 use tracing::{debug, info};
@@ -111,7 +111,7 @@ impl Scanner {
         debug!("Starting image scan for: {}", path.as_ref().display());
 
         let img = image::open(&path)
-            .context("Failed to open image")?;
+            .map_err(|e| StudFinderError::Image(e))?;
         debug!("Image loaded successfully: {}x{}", img.width(), img.height());
 
         self.validate_image(&img)?;
@@ -155,11 +155,12 @@ impl Scanner {
 
         if width < self.config.min_region_size || height < self.config.min_region_size {
             debug!("Image dimensions below minimum requirement: {}x{}", width, height);
-            return Err(anyhow::anyhow!(
-                "Image too small: minimum {}x{} pixels required",
-                self.config.min_region_size,
-                self.config.min_region_size
-            ));
+            return Err(StudFinderError::InvalidDimensions {
+                width,
+                height,
+                min_width: self.config.min_region_size,
+                min_height: self.config.min_region_size,
+            });
         }
         Ok(())
     }

@@ -1,7 +1,7 @@
 use crate::Piece;
 use crate::image_processor::ImageProcessor;
 use crate::color_detector::{ColorDetector, ColorDetectorConfig, ColorStandard};
-use anyhow::{Result, Context};
+use crate::error::{Result, StudFinderError};
 use image::{DynamicImage, GenericImageView};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
@@ -84,7 +84,7 @@ impl Detector {
         debug!("Starting piece detection for: {}", image_path.as_ref().display());
         
         let img = image::open(&image_path)
-            .context("Failed to open image")?;
+            .map_err(|e| StudFinderError::Image(e))?;
         debug!("Image loaded successfully: {}x{}", img.width(), img.height());
         
         self.validate_image(&img)?;
@@ -154,9 +154,12 @@ impl Detector {
 
         if width < 100 || height < 100 {
             debug!("Image dimensions below minimum requirement: {}x{}", width, height);
-            return Err(anyhow::anyhow!(
-                "Image too small: minimum 100x100 pixels required"
-            ));
+            return Err(StudFinderError::InvalidDimensions {
+                width,
+                height,
+                min_width: 100,
+                min_height: 100,
+            });
         }
         Ok(())
     }
