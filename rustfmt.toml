@@ -1,0 +1,29 @@
+# Maximum width of each line
+max_width = 100
+
+# Use tabs instead of spaces
+hard_tabs = false
+
+# Width of tabs
+tab_spaces = 4
+
+# Reorder import statements alphabetically
+reorder_imports = true
+
+# Reorder module declarations alphabetically
+reorder_modules = true
+
+# Use field initialization shorthand when possible
+use_field_init_shorthand = true
+
+# Merge multiple derives into a single one
+merge_derives = true
+
+# Format array and struct literals with newlines
+struct_lit_width = 0
+
+# Format array and struct literals with newlines
+array_width = 0
+
+# Format chain method calls
+chain_width = 60

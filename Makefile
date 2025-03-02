@@ -26,6 +26,18 @@ lint:
 	cargo clippy -- -D warnings
 	cargo fmt --check
 
+format:
+	cargo fmt
+
+lint-fix:
+	cargo clippy --fix -- -D warnings
+	cargo fmt
+
+lint-all: lint
+	cargo clippy --all-targets --all-features -- -D warnings
+	cargo doc --no-deps --document-private-items --warn-missing-docs
+	@echo "All linting checks passed!"
+
 docs:
 	cargo doc --no-deps
 

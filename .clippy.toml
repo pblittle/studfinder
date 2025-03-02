@@ -1,0 +1,26 @@
+# Disallow usage of `unwrap()` in production code
+# Exclude logging macros from this check
+disallowed-methods = [
+    { path = "std::option::Option::unwrap", reason = "Use pattern matching or `ok_or` instead" },
+    { path = "std::result::Result::unwrap", reason = "Use pattern matching or `?` operator instead" },
+]
+
+# Configure complexity thresholds
+cognitive-complexity-threshold = 25
+too-many-arguments-threshold = 7
+too-large-for-stack = 200
+too-many-lines-threshold = 150
+type-complexity-threshold = 250
+
+# Configure doc comment threshold
+doc-valid-idents = [
+    "KiB", "MiB", "GiB", "TiB", "PiB", "EiB",
+    "KB", "MB", "GB", "TB", "PB", "EB",
+    "LEGO", "BrickLink", "StudFinder",
+]
+
+# Configure allowed duplicates
+allowed-duplicate-crates = []
+
+# Configure allowed scripts
+allowed-scripts = []

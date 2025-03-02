@@ -63,9 +63,38 @@ make test
 # Run linter
 make lint
 
+# Format code
+make format
+
+# Fix linting issues automatically
+make lint-fix
+
+# Run comprehensive linting checks
+make lint-all
+
 # Development mode (watch)
 make dev
 ```
+
+### Code Quality Tools
+
+The project uses several tools to ensure code quality:
+
+1. **rustfmt** - Code formatter configured in `rustfmt.toml`
+   - Ensures consistent code style
+   - Run with `make format` to format code
+   - Run with `make lint` to check formatting
+
+2. **clippy** - Rust linter configured in `.clippy.toml`
+   - Catches common mistakes and improves code quality
+   - Enforces best practices
+   - Run with `make lint` to check for issues
+   - Run with `make lint-fix` to automatically fix issues
+
+3. **GitHub Actions** - CI/CD pipeline in `.github/workflows/rust.yml`
+   - Runs tests and linting on every push and pull request
+   - Ensures code quality is maintained
+   - Performs security audits
 
 ### Debug Logging
 
