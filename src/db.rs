@@ -5,12 +5,24 @@ use std::path::Path;
 use std::sync::Mutex;
 use tracing::{debug, info};
 
+/// Database management for the StudFinder application
+///
+/// Handles all database operations, including schema management,
+/// piece storage and retrieval, and inventory operations.
 pub struct Database {
     conn: Mutex<Connection>,
 }
 
 impl Database {
     /// Creates a new Database instance with the specified path
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the SQLite database file
+    ///
+    /// # Returns
+    ///
+    /// A new `Database` instance or an error
     ///
     /// # Errors
     ///
@@ -27,6 +39,10 @@ impl Database {
     }
 
     /// Initializes the database schema, creating tables and applying migrations
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the schema was initialized successfully, or an error
     ///
     /// # Errors
     ///
@@ -116,6 +132,10 @@ impl Database {
 
     /// Resets the database schema, dropping all tables and reinitializing
     ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the schema was reset successfully, or an error
+    ///
     /// # Errors
     ///
     /// Returns an error if:
@@ -150,6 +170,14 @@ impl Database {
     }
 
     /// Adds a piece to the database or updates its quantity if it already exists
+    ///
+    /// # Arguments
+    ///
+    /// * `piece` - The piece to add to the database
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the piece was added or updated successfully, or an error
     ///
     /// # Errors
     ///
@@ -222,6 +250,14 @@ impl Database {
 
     /// Retrieves a piece from the database by its ID
     ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the piece to retrieve
+    ///
+    /// # Returns
+    ///
+    /// `Ok(Some(Piece))` if the piece was found, `Ok(None)` if not found, or an error
+    ///
     /// # Errors
     ///
     /// Returns an error if:
@@ -259,6 +295,10 @@ impl Database {
 
     /// Lists all pieces in the inventory
     ///
+    /// # Returns
+    ///
+    /// A vector of all pieces in the database, or an error
+    ///
     /// # Errors
     ///
     /// Returns an error if:
@@ -294,6 +334,15 @@ impl Database {
 
     /// Updates the quantity of a piece in the database
     ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the piece to update
+    /// * `quantity` - The new quantity to set
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the piece was updated successfully, or an error
+    ///
     /// # Errors
     ///
     /// Returns an error if:
@@ -315,6 +364,14 @@ impl Database {
 
     /// Deletes a piece from the database
     ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the piece to delete
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the piece was deleted successfully, or an error
+    ///
     /// # Errors
     ///
     /// Returns an error if:
@@ -332,6 +389,10 @@ impl Database {
     }
 
     /// Gets the current schema version
+    ///
+    /// # Returns
+    ///
+    /// The current schema version number, or an error
     ///
     /// # Errors
     ///
