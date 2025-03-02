@@ -1,84 +1,46 @@
 use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
-use tracing::{info, debug};
+use tracing::{debug, info};
 
-use crate::error::{Result, StudFinderError};
+// Re-export core types
+pub mod core;
+pub use core::*;
 
-pub mod config;
-pub mod db;
-pub mod detector;
+// Re-export processing types
+pub mod processing;
+pub use processing::*;
+
+// Re-export storage types
+pub mod storage;
+
+// Keep error module at the top level
 pub mod error;
-pub mod image_processor;
-pub mod scanner;
-pub mod color_detector;
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum ProcessorType {
-    Scanner,
-    Detector,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Config {
-    pub database_path: PathBuf,
-    pub export_format: ExportFormat,
-    pub scan_quality: ScanQuality,
-    pub processor_type: ProcessorType,
-    pub confidence_threshold: f32,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum ExportFormat {
-    Json,
-    Csv,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum ScanQuality {
-    Fast,
-    Balanced,
-    Accurate,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Piece {
-    pub id: String,
-    pub part_number: String,
-    pub color: String,
-    pub category: String,
-    pub quantity: i32,
-    pub confidence: f32,
-}
-
-impl std::fmt::Display for Piece {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}x {} {} ({}) [confidence: {:.1}%]",
-            self.quantity,
-            self.part_number,
-            self.category,
-            self.color,
-            self.confidence * 100.0
-        )
-    }
-}
+use crate::error::{Result, StudFinderError};
 
 pub struct StudFinder {
     config: Config,
-    db: db::Database,
-    processor: Box<dyn image_processor::ImageProcessor>,
+    db: storage::Database,
+    processor: Box<dyn processing::ImageProcessor>,
 }
 
 impl StudFinder {
     pub fn new(config: Config) -> Result<Self> {
-        let db = db::Database::new(&config.database_path)?;
-        
+        let db = storage::Database::new(&config.database_path)?;
+
         // Choose processor based on configuration
-        let processor: Box<dyn image_processor::ImageProcessor> = match config.processor_type {
-            ProcessorType::Scanner => Box::new(scanner::Scanner::new(config.scan_quality.clone())),
-            ProcessorType::Detector => Box::new(detector::Detector::new(config.confidence_threshold)),
+        let processor: Box<dyn processing::ImageProcessor> = match config.processor_type {
+            ProcessorType::Scanner => {
+                Box::new(processing::Scanner::new(config.scan_quality.clone()))
+            }
+            ProcessorType::Detector => {
+                Box::new(processing::Detector::new(config.confidence_threshold))
+            }
         };
 
-        let finder = Self { config, db, processor };
+        let finder = Self {
+            config,
+            db,
+            processor,
+        };
         Ok(finder)
     }
 
@@ -111,16 +73,18 @@ impl StudFinder {
         // Image processing in a blocking task
         let processor = self.processor.clone();
         let path_clone = path.clone();
-        let pieces = tokio::task::spawn_blocking(move || {
-            processor.process_image(&path_clone)
-        }).await
-          .map_err(|_| StudFinderError::NoPiecesDetected)??;
+        let pieces = tokio::task::spawn_blocking(move || processor.process_image(&path_clone))
+            .await
+            .map_err(|_| StudFinderError::NoPiecesDetected)??;
 
         if pieces.is_empty() {
             return Err(StudFinderError::NoPiecesDetected);
         }
 
-        let piece = pieces.into_iter().next().unwrap();
+        let piece = pieces
+            .into_iter()
+            .next()
+            .ok_or(StudFinderError::NoPiecesDetected)?;
         info!("Successfully detected piece: {}", piece);
 
         Ok(piece)
@@ -136,63 +100,13 @@ impl StudFinder {
 
     pub fn export_inventory(&self, path: PathBuf) -> Result<()> {
         let pieces = self.list_inventory()?;
-        match self.config.export_format {
-            ExportFormat::Json => {
-                let json = serde_json::to_string_pretty(&pieces)
-                    .map_err(|e| StudFinderError::Config(e.to_string()))?;
-                std::fs::write(&path, json)
-                    .map_err(|e| StudFinderError::Io(e))?;
-            }
-            ExportFormat::Csv => {
-                let mut output = String::new();
-                output.push_str("id,part_number,color,category,quantity,confidence\n");
-                for piece in pieces {
-                    output.push_str(&format!(
-                        "{},{},{},{},{},{}\n",
-                        piece.id,
-                        piece.part_number,
-                        piece.color,
-                        piece.category,
-                        piece.quantity,
-                        piece.confidence
-                    ));
-                }
-                std::fs::write(&path, output)
-                    .map_err(|e| StudFinderError::Io(e))?;
-            }
-        }
-        Ok(())
+        storage::export::ExportManager::export_inventory(&pieces, path, &self.config.export_format)
     }
 
     pub fn import_inventory(&self, path: PathBuf) -> Result<()> {
-        if path.extension().and_then(|s| s.to_str()) == Some("json") {
-            let data = std::fs::read_to_string(&path)
-                .map_err(|e| StudFinderError::Io(e))?;
-            let pieces: Vec<Piece> = serde_json::from_str(&data)
-                .map_err(|e| StudFinderError::Config(format!("Failed to parse JSON data: {}", e)))?;
-            for piece in pieces {
-                self.add_piece(piece)?;
-            }
-        } else {
-            // Assume CSV
-            let data = std::fs::read_to_string(&path)
-                .map_err(|e| StudFinderError::Io(e))?;
-            for line in data.lines().skip(1) { // Skip header
-                let fields: Vec<&str> = line.split(',').collect();
-                if fields.len() == 6 {
-                    let piece = Piece {
-                        id: fields[0].to_string(),
-                        part_number: fields[1].to_string(),
-                        color: fields[2].to_string(),
-                        category: fields[3].to_string(),
-                        quantity: fields[4].parse()
-                            .map_err(|_| StudFinderError::Config("Failed to parse quantity".to_string()))?,
-                        confidence: fields[5].parse()
-                            .map_err(|_| StudFinderError::Config("Failed to parse confidence".to_string()))?,
-                    };
-                    self.add_piece(piece)?;
-                }
-            }
+        let pieces = storage::export::ExportManager::import_inventory(path)?;
+        for piece in pieces {
+            self.add_piece(piece)?;
         }
         Ok(())
     }
@@ -239,7 +153,9 @@ mod tests {
         let image_path = temp_dir.path().join("test.jpg");
         let mut img = image::RgbImage::new(200, 200);
         for pixel in img.pixels_mut() {
-            *pixel = image::Rgb([255, 0, 0]); // Pure red
+            *pixel = image::Rgb([
+                255, 0, 0,
+            ]); // Pure red
         }
         img.save(&image_path).unwrap();
 

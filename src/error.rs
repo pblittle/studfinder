@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 /// Errors that can occur in the StudFinder application
-/// 
+///
 /// This enum provides specific error variants for different failure modes
 /// throughout the application, with context-rich information to aid in
 /// troubleshooting and error handling.
@@ -50,7 +50,9 @@ pub enum StudFinderError {
     Io(#[from] std::io::Error),
 
     /// Image dimensions are invalid for processing
-    #[error("Invalid image dimensions: {width}x{height}, minimum required: {min_width}x{min_height}")]
+    #[error(
+        "Invalid image dimensions: {width}x{height}, minimum required: {min_width}x{min_height}"
+    )]
     InvalidDimensions {
         /// The actual width of the image
         width: u32,
@@ -73,15 +75,15 @@ pub enum StudFinderError {
     /// Configuration error occurred
     #[error("Invalid configuration: {0}")]
     Config(String),
-    
+
     /// No LEGO pieces were detected in the processed image
     #[error("No pieces detected in image")]
     NoPiecesDetected,
-    
+
     /// Color detection failed
     #[error("Color detection failed: {0}")]
     ColorDetectionFailed(String),
-    
+
     /// Template matching failed
     #[error("Template matching failed: {0}")]
     TemplateMatchingFailed(String),

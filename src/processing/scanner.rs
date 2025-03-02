@@ -1,7 +1,7 @@
-use crate::{Piece, ScanQuality};
-use crate::image_processor::ImageProcessor;
-use crate::color_detector::{ColorDetector, ColorDetectorConfig, ColorStandard};
+use crate::core::piece::{Piece, ScanQuality};
 use crate::error::{Result, StudFinderError};
+use crate::processing::color::{ColorDetector, ColorDetectorConfig, ColorStandard};
+use crate::processing::processor::ImageProcessor;
 use image::{DynamicImage, GenericImageView};
 use std::path::Path;
 use tracing::{debug, info};
@@ -29,12 +29,13 @@ impl Scanner {
     ///
     /// # Arguments
     /// * `quality` - The scan quality level (Fast, Balanced, or Accurate)
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
-    /// use studfinder::{scanner::Scanner, ScanQuality};
-    /// 
+    /// use studfinder::processing::Scanner;
+    /// use studfinder::core::piece::ScanQuality;
+    ///
     /// let scanner = Scanner::new(ScanQuality::Balanced);
     /// ```
     #[must_use]
@@ -68,13 +69,14 @@ impl Scanner {
             },
         };
 
-        debug!("Scanner configuration: confidence={}, size={}, color_threshold={}",
-            config.min_confidence,
-            config.min_region_size,
-            config.color_detector_config.threshold
+        debug!(
+            "Scanner configuration: confidence={}, size={}, color_threshold={}",
+            config.min_confidence, config.min_region_size, config.color_detector_config.threshold
         );
 
-        Self { config }
+        Self {
+            config,
+        }
     }
 
     /// Scan an image to identify LEGO pieces
@@ -84,23 +86,24 @@ impl Scanner {
     ///
     /// # Returns
     /// * `Result<Vec<Piece>>` - A list of identified pieces or an error
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if:
     /// - The image file cannot be opened or read
     /// - The image validation fails (e.g., image is too small)
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
-    /// use studfinder::{scanner::Scanner, ScanQuality};
+    /// use studfinder::processing::Scanner;
+    /// use studfinder::core::piece::ScanQuality;
     /// use std::path::Path;
-    /// 
+    ///
     /// # async fn example() -> anyhow::Result<()> {
     /// let scanner = Scanner::new(ScanQuality::Balanced);
     /// let pieces = scanner.scan_image(Path::new("test_data/test.jpg"))?;
-    /// 
+    ///
     /// for piece in pieces {
     ///     println!("Detected: {} {} ({})", piece.color, piece.part_number, piece.confidence);
     /// }
@@ -110,9 +113,12 @@ impl Scanner {
     pub fn scan_image<P: AsRef<Path>>(&self, path: P) -> Result<Vec<Piece>> {
         debug!("Starting image scan for: {}", path.as_ref().display());
 
-        let img = image::open(&path)
-            .map_err(|e| StudFinderError::Image(e))?;
-        debug!("Image loaded successfully: {}x{}", img.width(), img.height());
+        let img = image::open(&path).map_err(StudFinderError::Image)?;
+        debug!(
+            "Image loaded successfully: {}x{}",
+            img.width(),
+            img.height()
+        );
 
         self.validate_image(&img)?;
         debug!("Image validation passed");
@@ -122,39 +128,51 @@ impl Scanner {
         let color_info = color_detector.detect_color(&img);
 
         if color_info.confidence < self.config.min_confidence {
-            debug!("Color detection confidence too low: {:.2}", color_info.confidence);
+            debug!(
+                "Color detection confidence too low: {:.2}",
+                color_info.confidence
+            );
             return Ok(vec![]);
         }
 
-        info!("Detected color: {} (confidence: {:.2}%)", color_info.name, color_info.confidence * 100.0);
+        info!(
+            "Detected color: {} (confidence: {:.2}%)",
+            color_info.name,
+            color_info.confidence * 100.0
+        );
 
         let part_number = self.detect_part_type(&img);
         let category = self.categorize_part(&part_number);
 
-        let pieces = vec![Piece {
-            id: Uuid::new_v4().to_string(),
-            part_number,
-            color: color_info.name,
-            category,
-            quantity: 1,
-            confidence: color_info.confidence,
-        }];
+        let pieces = vec![
+            Piece {
+                id: Uuid::new_v4().to_string(),
+                part_number,
+                color: color_info.name,
+                category,
+                quantity: 1,
+                confidence: color_info.confidence,
+            },
+        ];
 
         debug!("Created piece record: {:?}", pieces[0]);
         Ok(pieces)
     }
 
     /// Validate that the image meets minimum requirements
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the image dimensions are below the minimum requirements
     fn validate_image(&self, img: &DynamicImage) -> Result<()> {
         let (width, height) = img.dimensions();
         debug!("Validating image dimensions: {}x{}", width, height);
 
         if width < self.config.min_region_size || height < self.config.min_region_size {
-            debug!("Image dimensions below minimum requirement: {}x{}", width, height);
+            debug!(
+                "Image dimensions below minimum requirement: {}x{}",
+                width, height
+            );
             return Err(StudFinderError::InvalidDimensions {
                 width,
                 height,
@@ -166,7 +184,7 @@ impl Scanner {
     }
 
     /// Detect the part type from the image
-    /// 
+    ///
     /// In a real implementation, this would use more sophisticated image analysis.
     /// Currently, it returns a simulated result.
     fn detect_part_type(&self, _img: &DynamicImage) -> String {
@@ -176,7 +194,7 @@ impl Scanner {
     }
 
     /// Categorize a part based on its part number
-    /// 
+    ///
     /// Maps part numbers to their corresponding categories (e.g., Brick, Plate, Tile)
     fn categorize_part(&self, part_number: &str) -> String {
         let category = match part_number {
@@ -194,12 +212,12 @@ impl ImageProcessor for Scanner {
     fn process_image(&self, image_path: &Path) -> Result<Vec<Piece>> {
         self.scan_image(image_path)
     }
-    
+
     fn validate_image(&self, image: &DynamicImage) -> Result<()> {
         // Call the struct's validate_image method
         Self::validate_image(self, image)
     }
-    
+
     fn clone_box(&self) -> Box<dyn ImageProcessor> {
         Box::new(self.clone())
     }
@@ -213,10 +231,16 @@ mod tests {
 
     #[test]
     fn test_scan_qualities() {
-        for quality in [ScanQuality::Fast, ScanQuality::Balanced, ScanQuality::Accurate] {
+        for quality in [
+            ScanQuality::Fast,
+            ScanQuality::Balanced,
+            ScanQuality::Accurate,
+        ] {
             let mut img = image::RgbImage::new(200, 200);
             for pixel in img.pixels_mut() {
-                *pixel = Rgb([255, 0, 0]);  // Pure red
+                *pixel = Rgb([
+                    255, 0, 0,
+                ]); // Pure red
             }
 
             let temp_dir = tempfile::tempdir().unwrap();
@@ -235,25 +259,27 @@ mod tests {
             }
         }
     }
-    
+
     #[test]
     fn test_image_processor_implementation() {
         let scanner = Scanner::new(ScanQuality::Balanced);
-        
+
         // Create a test image
         let temp_dir = tempfile::tempdir().unwrap();
         let path = temp_dir.path().join("test.jpg");
-        
+
         let mut img = image::RgbImage::new(200, 200);
         for pixel in img.pixels_mut() {
-            *pixel = Rgb([255, 0, 0]);  // Pure red
+            *pixel = Rgb([
+                255, 0, 0,
+            ]); // Pure red
         }
         img.save(&path).unwrap();
-        
+
         // Test through the ImageProcessor trait
         let processor: Box<dyn ImageProcessor> = Box::new(scanner);
         let pieces = processor.process_image(path.as_path()).unwrap();
-        
+
         assert!(!pieces.is_empty());
         assert_eq!(pieces[0].color, "Red");
         assert!(pieces[0].confidence > 0.8);

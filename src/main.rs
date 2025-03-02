@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use studfinder::{Config, StudFinder, ScanQuality, ExportFormat, ProcessorType};
 use std::path::PathBuf;
-use tracing::{error, info, debug};
+use studfinder::{Config, ExportFormat, ProcessorType, ScanQuality, StudFinder};
+use tracing::{debug, error, info};
 
 #[derive(Parser)]
 #[command(name = "studfinder")]
@@ -90,7 +90,9 @@ async fn main() -> Result<()> {
             studfinder.init()?;
             info!("Initialization complete");
         }
-        Commands::Reset { force } => {
+        Commands::Reset {
+            force,
+        } => {
             if !force {
                 println!("WARNING: This will delete all stored data. Are you sure? [y/N]");
                 let mut input = String::new();
@@ -104,7 +106,10 @@ async fn main() -> Result<()> {
             studfinder.reset()?;
             info!("Reset complete");
         }
-        Commands::Scan { path, batch } => {
+        Commands::Scan {
+            path,
+            batch,
+        } => {
             if batch {
                 info!("Processing directory: {}", path.display());
                 process_directory(&studfinder, path).await?;
@@ -113,17 +118,23 @@ async fn main() -> Result<()> {
                 process_single_image(&studfinder, path).await?;
             }
         }
-        Commands::Inventory { action } => match action {
+        Commands::Inventory {
+            action,
+        } => match action {
             InventoryCommands::List => {
                 let pieces = studfinder.list_inventory()?;
                 if pieces.is_empty() {
                     println!("No pieces in inventory");
                 } else {
                     println!("\nInventory:");
-                    println!("{:<36} {:<8} {:<10} {:<8} {:<10}", "ID", "PART#", "COLOR", "QTY", "CONFIDENCE");
+                    println!(
+                        "{:<36} {:<8} {:<10} {:<8} {:<10}",
+                        "ID", "PART#", "COLOR", "QTY", "CONFIDENCE"
+                    );
                     println!("{}", "-".repeat(75));
                     for piece in pieces {
-                        println!("{:<36} {:<8} {:<10} {:<8} {:.1}%",
+                        println!(
+                            "{:<36} {:<8} {:<10} {:<8} {:.1}%",
                             piece.id,
                             piece.part_number,
                             piece.color,
@@ -134,12 +145,16 @@ async fn main() -> Result<()> {
                     println!();
                 }
             }
-            InventoryCommands::Export { path } => {
+            InventoryCommands::Export {
+                path,
+            } => {
                 info!("Exporting inventory to: {}", path.display());
                 studfinder.export_inventory(path)?;
                 info!("Export complete");
             }
-            InventoryCommands::Import { path } => {
+            InventoryCommands::Import {
+                path,
+            } => {
                 info!("Importing inventory from: {}", path.display());
                 studfinder.import_inventory(path)?;
                 info!("Import complete");
@@ -170,8 +185,7 @@ async fn process_directory(studfinder: &StudFinder, dir: PathBuf) -> Result<()> 
     let mut successful = 0;
     let mut failed = 0;
 
-    for entry in std::fs::read_dir(&dir)?
-    {
+    for entry in std::fs::read_dir(&dir)? {
         let entry = entry?;
         let path = entry.path();
         if path.is_file() {
@@ -179,7 +193,7 @@ async fn process_directory(studfinder: &StudFinder, dir: PathBuf) -> Result<()> 
                 Ok(()) => {
                     successful += 1;
                     debug!("Successfully processed: {}", path.display());
-                },
+                }
                 Err(e) => {
                     failed += 1;
                     error!("Failed to process {}: {}", path.display(), e);
@@ -200,7 +214,8 @@ async fn process_single_image(studfinder: &StudFinder, path: PathBuf) -> Result<
 
     let piece = studfinder.scan_image(path).await?;
 
-    info!("Detected: {} {} {} (confidence: {:.1}%)",
+    info!(
+        "Detected: {} {} {} (confidence: {:.1}%)",
         piece.color,
         piece.category,
         piece.part_number,

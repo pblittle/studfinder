@@ -1,4 +1,4 @@
-use crate::Piece;
+use crate::core::Piece;
 use crate::error::Result;
 use image::DynamicImage;
 use std::path::Path;
@@ -15,15 +15,15 @@ pub trait ImageProcessor: Send + Sync {
     ///
     /// # Returns
     /// * `Result<Vec<Piece>>` - A list of identified pieces or an error
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if:
     /// - The image file cannot be opened or read
     /// - The image validation fails
     /// - The processing algorithm encounters an error
     fn process_image(&self, image_path: &Path) -> Result<Vec<Piece>>;
-    
+
     /// Validate that an image meets the requirements for processing
     ///
     /// # Arguments
@@ -31,15 +31,15 @@ pub trait ImageProcessor: Send + Sync {
     ///
     /// # Returns
     /// * `Result<()>` - Ok if the image is valid, or an error
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if:
     /// - The image dimensions are below the minimum requirements
     /// - The image format is not supported
     /// - The image quality is too low for processing
     fn validate_image(&self, image: &DynamicImage) -> Result<()>;
-    
+
     /// Create a boxed clone of this processor
     ///
     /// This is needed because trait objects can't use the Clone trait directly

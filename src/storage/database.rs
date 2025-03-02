@@ -1,9 +1,9 @@
-use crate::Piece;
+use crate::core::piece::Piece;
 use crate::error::{Result, StudFinderError};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::path::Path;
 use std::sync::Mutex;
-use tracing::{debug, info, warn, error};
+use tracing::{debug, error, info, warn};
 
 /// Database management for the StudFinder application
 ///
@@ -31,11 +31,10 @@ impl Database {
     /// - Failed to open the database connection
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         debug!("Opening database at: {:?}", path.as_ref());
-        let conn = Connection::open(path)
-            .map_err(|e| StudFinderError::Database {
-                operation: "open connection".to_string(),
-                source: Box::new(e),
-            })?;
+        let conn = Connection::open(path).map_err(|e| StudFinderError::Database {
+            operation: "open connection".to_string(),
+            source: Box::new(e),
+        })?;
         let db = Self {
             conn: Mutex::new(conn),
         };
@@ -59,15 +58,17 @@ impl Database {
         debug!("Initializing database schema");
 
         // Acquire lock and start transaction
-        let mut conn = self.conn.lock().map_err(|_| StudFinderError::DatabaseLockFailed {
-            operation: "initialize schema".to_string(),
-        })?;
-        
-        let tx = conn.transaction()
-            .map_err(|e| StudFinderError::Database {
-                operation: "begin transaction".to_string(),
-                source: Box::new(e),
+        let mut conn = self
+            .conn
+            .lock()
+            .map_err(|_| StudFinderError::DatabaseLockFailed {
+                operation: "initialize schema".to_string(),
             })?;
+
+        let tx = conn.transaction().map_err(|e| StudFinderError::Database {
+            operation: "begin transaction".to_string(),
+            source: Box::new(e),
+        })?;
 
         // Create schema version table
         tx.execute(
@@ -160,12 +161,11 @@ impl Database {
                 })?;
         }
 
-        tx.commit()
-            .map_err(|e| StudFinderError::Database {
-                operation: "commit transaction".to_string(),
-                source: Box::new(e),
-            })?;
-        
+        tx.commit().map_err(|e| StudFinderError::Database {
+            operation: "commit transaction".to_string(),
+            source: Box::new(e),
+        })?;
+
         debug!(
             "Database schema initialized successfully to version {}",
             self.get_schema_version()?
@@ -192,40 +192,42 @@ impl Database {
 
         {
             // Acquire lock and start transaction
-            let mut conn = self.conn.lock().map_err(|_| StudFinderError::DatabaseLockFailed {
-                operation: "reset schema".to_string(),
-            })?;
-            
-            let tx = conn.transaction()
-                .map_err(|e| StudFinderError::Database {
-                    operation: "begin transaction".to_string(),
-                    source: Box::new(e),
+            let mut conn = self
+                .conn
+                .lock()
+                .map_err(|_| StudFinderError::DatabaseLockFailed {
+                    operation: "reset schema".to_string(),
                 })?;
 
-            tx.execute("DROP TABLE IF EXISTS pieces", [])
-                .map_err(|e| StudFinderError::Database {
+            let tx = conn.transaction().map_err(|e| StudFinderError::Database {
+                operation: "begin transaction".to_string(),
+                source: Box::new(e),
+            })?;
+
+            tx.execute("DROP TABLE IF EXISTS pieces", []).map_err(|e| {
+                StudFinderError::Database {
                     operation: "drop pieces table".to_string(),
                     source: Box::new(e),
-                })?;
-            
+                }
+            })?;
+
             tx.execute("DROP TABLE IF EXISTS schema_version", [])
                 .map_err(|e| StudFinderError::Database {
                     operation: "drop schema_version table".to_string(),
                     source: Box::new(e),
                 })?;
 
-            tx.commit()
-                .map_err(|e| StudFinderError::Database {
-                    operation: "commit transaction".to_string(),
-                    source: Box::new(e),
-                })?;
+            tx.commit().map_err(|e| StudFinderError::Database {
+                operation: "commit transaction".to_string(),
+                source: Box::new(e),
+            })?;
         } // Release the lock before calling init
 
         match self.init() {
             Ok(_) => {
                 info!("Database schema reset complete");
                 Ok(())
-            },
+            }
             Err(e) => {
                 error!("Failed to initialize database after reset: {}", e);
                 Err(StudFinderError::DatabaseResetFailed {
@@ -256,15 +258,17 @@ impl Database {
         debug!("Adding piece to database: {}", piece);
 
         // Acquire lock and start transaction
-        let mut conn = self.conn.lock().map_err(|_| StudFinderError::DatabaseLockFailed {
-            operation: "add piece".to_string(),
-        })?;
-        
-        let tx = conn.transaction()
-            .map_err(|e| StudFinderError::Database {
-                operation: "begin transaction".to_string(),
-                source: Box::new(e),
+        let mut conn = self
+            .conn
+            .lock()
+            .map_err(|_| StudFinderError::DatabaseLockFailed {
+                operation: "add piece".to_string(),
             })?;
+
+        let tx = conn.transaction().map_err(|e| StudFinderError::Database {
+            operation: "begin transaction".to_string(),
+            source: Box::new(e),
+        })?;
 
         let existing = {
             let mut stmt = tx
@@ -298,7 +302,10 @@ impl Database {
             debug!("Found existing piece, updating quantity");
             tx.execute(
                 "UPDATE pieces SET quantity = ?1 WHERE id = ?2",
-                params![piece.quantity + existing_piece.quantity, piece.id],
+                params![
+                    piece.quantity + existing_piece.quantity,
+                    piece.id
+                ],
             )
             .map_err(|e| StudFinderError::Database {
                 operation: "update piece quantity".to_string(),
@@ -324,11 +331,10 @@ impl Database {
             })?;
         }
 
-        tx.commit()
-            .map_err(|e| StudFinderError::Database {
-                operation: "commit transaction".to_string(),
-                source: Box::new(e),
-            })?;
+        tx.commit().map_err(|e| StudFinderError::Database {
+            operation: "commit transaction".to_string(),
+            source: Box::new(e),
+        })?;
         debug!("Successfully added/updated piece in database");
 
         Ok(())
@@ -352,9 +358,12 @@ impl Database {
     pub fn get_piece(&self, id: &str) -> Result<Option<Piece>> {
         debug!("Fetching piece with id: {}", id);
 
-        let conn = self.conn.lock().map_err(|_| StudFinderError::DatabaseLockFailed {
-            operation: "get piece".to_string(),
-        })?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| StudFinderError::DatabaseLockFailed {
+                operation: "get piece".to_string(),
+            })?;
 
         let mut stmt = conn
             .prepare(
@@ -402,9 +411,12 @@ impl Database {
     pub fn list_pieces(&self) -> Result<Vec<Piece>> {
         debug!("Listing all pieces in inventory");
 
-        let conn = self.conn.lock().map_err(|_| StudFinderError::DatabaseLockFailed {
-            operation: "list pieces".to_string(),
-        })?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| StudFinderError::DatabaseLockFailed {
+                operation: "list pieces".to_string(),
+            })?;
 
         let mut stmt = conn
             .prepare("SELECT id, part_number, color, category, quantity, confidence FROM pieces")
@@ -413,20 +425,21 @@ impl Database {
                 source: Box::new(e),
             })?;
 
-        let pieces_result = stmt.query_map([], |row| {
-            Ok(Piece {
-                id: row.get(0)?,
-                part_number: row.get(1)?,
-                color: row.get(2)?,
-                category: row.get(3)?,
-                quantity: row.get(4)?,
-                confidence: row.get(5)?,
+        let pieces_result = stmt
+            .query_map([], |row| {
+                Ok(Piece {
+                    id: row.get(0)?,
+                    part_number: row.get(1)?,
+                    color: row.get(2)?,
+                    category: row.get(3)?,
+                    quantity: row.get(4)?,
+                    confidence: row.get(5)?,
+                })
             })
-        })
-        .map_err(|e| StudFinderError::Database {
-            operation: "query all pieces".to_string(),
-            source: Box::new(e),
-        })?;
+            .map_err(|e| StudFinderError::Database {
+                operation: "query all pieces".to_string(),
+                source: Box::new(e),
+            })?;
 
         let mut pieces = Vec::new();
         for piece_result in pieces_result {
@@ -466,18 +479,22 @@ impl Database {
     pub fn update_quantity(&self, id: &str, quantity: i32) -> Result<()> {
         debug!("Updating quantity for piece {}: {}", id, quantity);
 
-        let conn = self.conn.lock().map_err(|_| StudFinderError::DatabaseLockFailed {
-            operation: "update quantity".to_string(),
-        })?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| StudFinderError::DatabaseLockFailed {
+                operation: "update quantity".to_string(),
+            })?;
 
-        let rows_affected = conn.execute(
-            "UPDATE pieces SET quantity = ?1 WHERE id = ?2",
-            params![quantity, id],
-        )
-        .map_err(|e| StudFinderError::Database {
-            operation: format!("update quantity for piece '{}'", id),
-            source: Box::new(e),
-        })?;
+        let rows_affected = conn
+            .execute(
+                "UPDATE pieces SET quantity = ?1 WHERE id = ?2",
+                params![quantity, id],
+            )
+            .map_err(|e| StudFinderError::Database {
+                operation: format!("update quantity for piece '{}'", id),
+                source: Box::new(e),
+            })?;
 
         if rows_affected == 0 {
             return Err(StudFinderError::PieceNotFound(id.to_string()));
@@ -505,11 +522,15 @@ impl Database {
     pub fn delete_piece(&self, id: &str) -> Result<()> {
         debug!("Deleting piece with id: {}", id);
 
-        let conn = self.conn.lock().map_err(|_| StudFinderError::DatabaseLockFailed {
-            operation: "delete piece".to_string(),
-        })?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| StudFinderError::DatabaseLockFailed {
+                operation: "delete piece".to_string(),
+            })?;
 
-        let rows_affected = conn.execute("DELETE FROM pieces WHERE id = ?", [id])
+        let rows_affected = conn
+            .execute("DELETE FROM pieces WHERE id = ?", [id])
             .map_err(|e| StudFinderError::Database {
                 operation: format!("delete piece '{}'", id),
                 source: Box::new(e),
@@ -534,9 +555,12 @@ impl Database {
     /// - Failed to acquire the database lock
     /// - Failed to query the schema version
     fn get_schema_version(&self) -> Result<i32> {
-        let conn = self.conn.lock().map_err(|_| StudFinderError::DatabaseLockFailed {
-            operation: "get schema version".to_string(),
-        })?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| StudFinderError::DatabaseLockFailed {
+                operation: "get schema version".to_string(),
+            })?;
 
         let version: i32 = conn
             .query_row(
@@ -615,17 +639,17 @@ mod tests {
         assert_eq!(db.list_pieces().unwrap().len(), 0);
         assert_eq!(db.get_schema_version().unwrap(), 2);
     }
-    
+
     #[test]
     fn test_piece_not_found() {
         let db = Database::new(":memory:").unwrap();
         db.init().unwrap();
-        
+
         // Test get with non-existent ID
         let result = db.get_piece("non-existent");
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
-        
+
         // Test update with non-existent ID
         let result = db.update_quantity("non-existent", 5);
         assert!(result.is_err());
@@ -633,7 +657,7 @@ mod tests {
             StudFinderError::PieceNotFound(id) => assert_eq!(id, "non-existent"),
             e => panic!("Expected PieceNotFound error, got: {:?}", e),
         }
-        
+
         // Test delete with non-existent ID
         let result = db.delete_piece("non-existent");
         assert!(result.is_err());
@@ -642,14 +666,17 @@ mod tests {
             e => panic!("Expected PieceNotFound error, got: {:?}", e),
         }
     }
-    
+
     #[test]
     fn test_database_error_context() {
         // Test connection error with context
         let result = Database::new("/nonexistent/path/that/does/not/exist/db.sqlite");
         assert!(result.is_err());
         match result.unwrap_err() {
-            StudFinderError::Database { operation, .. } => {
+            StudFinderError::Database {
+                operation,
+                ..
+            } => {
                 assert_eq!(operation, "open connection");
             }
             e => panic!("Expected Database error, got: {:?}", e),
