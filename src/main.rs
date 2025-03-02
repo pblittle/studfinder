@@ -1,4 +1,4 @@
-use anyhow::{Result, Context};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 use studfinder::{Config, StudFinder, ScanQuality, ExportFormat, ProcessorType};
 use std::path::PathBuf;
@@ -80,17 +80,14 @@ async fn main() -> Result<()> {
 
     setup_logging(cli.verbose)?;
 
-    let config = get_default_config()
-        .context("Failed to get default configuration")?;
+    let config = get_default_config()?;
 
-    let studfinder = StudFinder::new(config)
-        .context("Failed to initialize StudFinder")?;
+    let studfinder = StudFinder::new(config)?;
 
     match cli.command {
         Commands::Init => {
             info!("Initializing studfinder...");
-            studfinder.init()
-                .context("Failed to initialize")?;
+            studfinder.init()?;
             info!("Initialization complete");
         }
         Commands::Reset { force } => {
@@ -104,25 +101,21 @@ async fn main() -> Result<()> {
                 }
             }
             info!("Resetting database...");
-            studfinder.reset()
-                .context("Failed to reset database")?;
+            studfinder.reset()?;
             info!("Reset complete");
         }
         Commands::Scan { path, batch } => {
             if batch {
                 info!("Processing directory: {}", path.display());
-                process_directory(&studfinder, path).await
-                    .context("Failed to process directory")?;
+                process_directory(&studfinder, path).await?;
             } else {
                 info!("Processing image: {}", path.display());
-                process_single_image(&studfinder, path).await
-                    .context("Failed to process image")?;
+                process_single_image(&studfinder, path).await?;
             }
         }
         Commands::Inventory { action } => match action {
             InventoryCommands::List => {
-                let pieces = studfinder.list_inventory()
-                    .context("Failed to list inventory")?;
+                let pieces = studfinder.list_inventory()?;
                 if pieces.is_empty() {
                     println!("No pieces in inventory");
                 } else {
@@ -143,14 +136,12 @@ async fn main() -> Result<()> {
             }
             InventoryCommands::Export { path } => {
                 info!("Exporting inventory to: {}", path.display());
-                studfinder.export_inventory(path)
-                    .context("Failed to export inventory")?;
+                studfinder.export_inventory(path)?;
                 info!("Export complete");
             }
             InventoryCommands::Import { path } => {
                 info!("Importing inventory from: {}", path.display());
-                studfinder.import_inventory(path)
-                    .context("Failed to import inventory")?;
+                studfinder.import_inventory(path)?;
                 info!("Import complete");
             }
         },
@@ -164,8 +155,7 @@ fn get_default_config() -> Result<Config> {
         .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?;
 
     let data_dir = dirs.data_dir();
-    std::fs::create_dir_all(data_dir)
-        .context("Failed to create data directory")?;
+    std::fs::create_dir_all(data_dir)?;
 
     Ok(Config {
         database_path: data_dir.join("studfinder.db"),
@@ -180,8 +170,7 @@ async fn process_directory(studfinder: &StudFinder, dir: PathBuf) -> Result<()> 
     let mut successful = 0;
     let mut failed = 0;
 
-    for entry in std::fs::read_dir(&dir)
-        .with_context(|| format!("Failed to read directory: {}", dir.display()))?
+    for entry in std::fs::read_dir(&dir)?
     {
         let entry = entry?;
         let path = entry.path();
@@ -209,9 +198,7 @@ async fn process_directory(studfinder: &StudFinder, dir: PathBuf) -> Result<()> 
 async fn process_single_image(studfinder: &StudFinder, path: PathBuf) -> Result<()> {
     info!("Processing image: {}", path.display());
 
-    let piece = studfinder.scan_image(path)
-        .await
-        .context("Failed to scan image")?;
+    let piece = studfinder.scan_image(path).await?;
 
     info!("Detected: {} {} {} (confidence: {:.1}%)",
         piece.color,
@@ -220,8 +207,7 @@ async fn process_single_image(studfinder: &StudFinder, path: PathBuf) -> Result<
         piece.confidence * 100.0
     );
 
-    studfinder.add_piece(piece)
-        .context("Failed to add piece to inventory")?;
+    studfinder.add_piece(piece)?;
 
     Ok(())
 }

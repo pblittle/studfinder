@@ -27,6 +27,21 @@ pub enum StudFinderError {
 
     #[error("Invalid configuration: {0}")]
     Config(String),
+    
+    #[error("No pieces detected in image")]
+    NoPiecesDetected,
+    
+    #[error("Color detection failed: {0}")]
+    ColorDetectionFailed(String),
+    
+    #[error("Template matching failed: {0}")]
+    TemplateMatchingFailed(String),
+    
+    #[error("Database initialization failed: {0}")]
+    DatabaseInitFailed(String),
+    
+    #[error("Database lock error")]
+    DatabaseLockError,
 }
 
 pub type Result<T> = std::result::Result<T, StudFinderError>;
@@ -34,5 +49,11 @@ pub type Result<T> = std::result::Result<T, StudFinderError>;
 impl From<serde_json::Error> for StudFinderError {
     fn from(err: serde_json::Error) -> Self {
         StudFinderError::Config(err.to_string())
+    }
+}
+
+impl From<std::sync::PoisonError<std::sync::MutexGuard<'_, rusqlite::Connection>>> for StudFinderError {
+    fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'_, rusqlite::Connection>>) -> Self {
+        StudFinderError::DatabaseLockError
     }
 }

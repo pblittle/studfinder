@@ -1,7 +1,9 @@
 use std::path::PathBuf;
-use anyhow::{Result, Context};
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use tracing::{info, debug};
+
+use crate::error::{Result, StudFinderError};
 
 pub mod config;
 pub mod db;
@@ -69,8 +71,7 @@ pub struct StudFinder {
 
 impl StudFinder {
     pub fn new(config: Config) -> Result<Self> {
-        let db = db::Database::new(&config.database_path)
-            .context("Failed to initialize database")?;
+        let db = db::Database::new(&config.database_path)?;
         
         // Choose processor based on configuration
         let processor: Box<dyn image_processor::ImageProcessor> = match config.processor_type {
@@ -84,15 +85,13 @@ impl StudFinder {
 
     pub fn init(&self) -> Result<()> {
         debug!("Initializing StudFinder");
-        self.db.init()
-            .context("Failed to initialize database schema")?;
+        self.db.init()?;
         Ok(())
     }
 
     pub fn reset(&self) -> Result<()> {
         debug!("Resetting StudFinder");
-        self.db.reset()
-            .context("Failed to reset database")?;
+        self.db.reset()?;
         self.init()?;
         Ok(())
     }
@@ -115,11 +114,11 @@ impl StudFinder {
         let path_clone = path.clone();
         let pieces = tokio::task::spawn_blocking(move || {
             processor.process_image(&path_clone)
-        }).await.context("Failed to spawn processing task")?
-          .context("Failed to process image")?;
+        }).await
+          .map_err(|_| StudFinderError::NoPiecesDetected)??;
 
         if pieces.is_empty() {
-            return Err(anyhow::anyhow!("No pieces detected in image"));
+            return Err(StudFinderError::NoPiecesDetected);
         }
 
         let piece = pieces.into_iter().next().unwrap();
@@ -130,7 +129,6 @@ impl StudFinder {
 
     pub fn add_piece(&self, piece: Piece) -> Result<()> {
         self.db.add_piece(&piece)
-            .context("Failed to add piece to database")
     }
 
     pub fn list_inventory(&self) -> Result<Vec<Piece>> {
@@ -141,9 +139,10 @@ impl StudFinder {
         let pieces = self.list_inventory()?;
         match self.config.export_format {
             ExportFormat::Json => {
-                let json = serde_json::to_string_pretty(&pieces)?;
+                let json = serde_json::to_string_pretty(&pieces)
+                    .map_err(|e| StudFinderError::Config(e.to_string()))?;
                 std::fs::write(&path, json)
-                    .context("Failed to write JSON export")?;
+                    .map_err(|e| StudFinderError::Io(e))?;
             }
             ExportFormat::Csv => {
                 let mut output = String::new();
@@ -160,7 +159,7 @@ impl StudFinder {
                     ));
                 }
                 std::fs::write(&path, output)
-                    .context("Failed to write CSV export")?;
+                    .map_err(|e| StudFinderError::Io(e))?;
             }
         }
         Ok(())
@@ -169,16 +168,16 @@ impl StudFinder {
     pub fn import_inventory(&self, path: PathBuf) -> Result<()> {
         if path.extension().and_then(|s| s.to_str()) == Some("json") {
             let data = std::fs::read_to_string(&path)
-                .context("Failed to read JSON import file")?;
+                .map_err(|e| StudFinderError::Io(e))?;
             let pieces: Vec<Piece> = serde_json::from_str(&data)
-                .context("Failed to parse JSON data")?;
+                .map_err(|e| StudFinderError::Config(format!("Failed to parse JSON data: {}", e)))?;
             for piece in pieces {
                 self.add_piece(piece)?;
             }
         } else {
             // Assume CSV
             let data = std::fs::read_to_string(&path)
-                .context("Failed to read CSV import file")?;
+                .map_err(|e| StudFinderError::Io(e))?;
             for line in data.lines().skip(1) { // Skip header
                 let fields: Vec<&str> = line.split(',').collect();
                 if fields.len() == 6 {
@@ -188,9 +187,9 @@ impl StudFinder {
                         color: fields[2].to_string(),
                         category: fields[3].to_string(),
                         quantity: fields[4].parse()
-                            .context("Failed to parse quantity")?,
+                            .map_err(|_| StudFinderError::Config("Failed to parse quantity".to_string()))?,
                         confidence: fields[5].parse()
-                            .context("Failed to parse confidence")?,
+                            .map_err(|_| StudFinderError::Config("Failed to parse confidence".to_string()))?,
                     };
                     self.add_piece(piece)?;
                 }
