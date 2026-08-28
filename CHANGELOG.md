@@ -59,9 +59,11 @@ First tagged release.
 ### Added
 
 - Image-based LEGO piece identification, built on an `ImageProcessor` trait with two
-  interchangeable strategies: `Scanner` (colour-based) and `Detector` (template matching)
-- Colour detection with selectable standards (BrickLink or LEGO official) and
-  confidence scoring based on colour purity
+  interchangeable strategies: `Scanner` (color-based) and `Detector` (template matching).
+  Corrected after release: template matching was never implemented, and both strategies
+  return a hardcoded part number ([#21])
+- Color detection with selectable standards (BrickLink or LEGO official) and
+  confidence scoring based on color purity
 - Configurable scan quality: Fast, Balanced, Accurate
 - Local SQLite inventory with a versioned schema
 - Batch directory processing
