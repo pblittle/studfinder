@@ -5,6 +5,29 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- CI: replaced the archived `actions-rs/toolchain` action with `dtolnay/rust-toolchain`,
+  bumped `actions/checkout` and `actions/cache` to v4, and added `--locked` so CI fails
+  when `Cargo.lock` is out of sync with `Cargo.toml` instead of silently re-resolving
+  it ([#10])
+
+### Removed
+
+- Unused dependencies `imageproc`, `rusttype`, `ndarray`, and `mockall`. None were
+  referenced anywhere in `src/` or `tests/`. Dropping them removes 38 crates from the
+  dependency tree ([#11])
+
+### Security
+
+- The `rand` 0.7.3 advisory listed under 0.1.0 known issues is resolved. `rand` was
+  reachable only through `imageproc`, so removing `imageproc` takes `rand` and its
+  `getrandom` 0.1 / `wasi` 0.9 chain out of the tree entirely, with no breaking upgrade
+  needed. Removing `rusttype` also clears the unmaintained-crate warnings for `rusttype`
+  and `ttf-parser` ([#11])
+
 ## [0.1.0] - 2026-08-28
 
 First tagged release.
@@ -48,8 +71,11 @@ First tagged release.
   requires `rand ^0.7.3`, so reaching the patched 0.8.6 needs a breaking
   `imageproc` 0.24+ upgrade.
 
+[Unreleased]: https://github.com/pblittle/studfinder/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/pblittle/studfinder/releases/tag/v0.1.0
 [#4]: https://github.com/pblittle/studfinder/issues/4
 [#5]: https://github.com/pblittle/studfinder/pull/5
 [#6]: https://github.com/pblittle/studfinder/pull/6
 [#7]: https://github.com/pblittle/studfinder/pull/7
+[#10]: https://github.com/pblittle/studfinder/pull/10
+[#11]: https://github.com/pblittle/studfinder/pull/11
