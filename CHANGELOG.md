@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- README described shape analysis and template matching as working features. Neither is
+  implemented: both processors return a hardcoded part number, so every scan reports part
+  `3001` in category `Brick`. Added a project status section, corrected the feature and
+  architecture descriptions, and filed [#21] to track the real implementation ([#22])
+- README overstated color detection. It classifies the image's average pixel against six
+  primary colors, and the BrickLink and LEGO Official standards differ only in the names
+  they return ([#22])
 - README listed SQLite3 as a prerequisite, but `rusqlite`'s `bundled` feature compiles
   SQLite in, so no system install is needed ([#13])
 
@@ -98,3 +105,5 @@ First tagged release.
 [#11]: https://github.com/pblittle/studfinder/pull/11
 [#12]: https://github.com/pblittle/studfinder/pull/12
 [#13]: https://github.com/pblittle/studfinder/pull/13
+[#21]: https://github.com/pblittle/studfinder/issues/21
+[#22]: https://github.com/pblittle/studfinder/pull/22
