@@ -2,6 +2,12 @@
 name = "studfinder"
 version = "0.1.0"
 edition = "2021"
+description = "Vision-based LEGO piece identification and cataloging tool"
+license = "MIT"
+repository = "https://github.com/pblittle/studfinder"
+readme = "README.md"
+keywords = ["lego", "computer-vision", "cli", "inventory", "cataloging"]
+categories = ["command-line-utilities", "computer-vision"]
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }

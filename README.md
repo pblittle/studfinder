@@ -1,5 +1,8 @@
 # Studfinder
 
+[![Rust CI](https://github.com/pblittle/studfinder/actions/workflows/rust.yml/badge.svg)](https://github.com/pblittle/studfinder/actions/workflows/rust.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A vision-based LEGO piece identification and cataloging tool that scans and identifies LEGO pieces using computer vision.
 
 ## Features
@@ -48,7 +51,8 @@ studfinder inventory import pieces.json
 ### Prerequisites
 
 - Rust 1.70+
-- SQLite3
+- A C toolchain, used to build the bundled SQLite (`rusqlite`'s `bundled`
+  feature compiles SQLite in, so no system SQLite install is required)
 
 ### Setup Development Environment
 
@@ -215,6 +219,15 @@ Error types include:
 - I/O errors
 - Validation errors
 - Configuration errors
+
+## Contributing
+
+Bug reports and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for how to build, test, and lint, and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+for the ground rules.
+
+To report a security issue, follow [SECURITY.md](SECURITY.md) rather than opening
+a public issue.
 
 ## License
 
