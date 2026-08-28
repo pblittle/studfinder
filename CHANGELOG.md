@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `getrandom` 0.1 / `wasi` 0.9 chain out of the tree entirely, with no breaking upgrade
   needed. Removing `rusttype` also clears the unmaintained-crate warnings for `rusttype`
   and `ttf-parser` ([#11])
+- `anyhow` 1.0.93 → 1.0.104 — RUSTSEC-2026-0190, unsoundness in
+  `Error::downcast_mut()` when called on an error that has had context added via
+  `Error::context` ([#12])
 
 ## [0.1.0] - 2026-08-28
 
@@ -79,3 +82,4 @@ First tagged release.
 [#7]: https://github.com/pblittle/studfinder/pull/7
 [#10]: https://github.com/pblittle/studfinder/pull/10
 [#11]: https://github.com/pblittle/studfinder/pull/11
+[#12]: https://github.com/pblittle/studfinder/pull/12
