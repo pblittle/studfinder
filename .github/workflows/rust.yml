@@ -74,7 +74,9 @@ jobs:
       run: cargo clippy --all-targets --all-features -- -D warnings
     
     - name: Check documentation
-      run: cargo doc --no-deps --document-private-items --warn-missing-docs
+      env:
+        RUSTDOCFLAGS: -W missing-docs
+      run: cargo doc --no-deps --document-private-items
 
   security-audit:
     runs-on: ubuntu-latest

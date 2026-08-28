@@ -35,7 +35,7 @@ lint-fix:
 
 lint-all: lint
 	cargo clippy --all-targets --all-features -- -D warnings
-	cargo doc --no-deps --document-private-items --warn-missing-docs
+	RUSTDOCFLAGS="-W missing-docs" cargo doc --no-deps --document-private-items
 	@echo "All linting checks passed!"
 
 docs:
