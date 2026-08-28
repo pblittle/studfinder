@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest something studfinder should do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: >
+        Describe the situation rather than the solution. What are you cataloguing,
+        and where does studfinder get in the way today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: A rough sketch is fine. A CLI example is even better.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you tried instead
+      description: Other tools or workarounds, and why they fell short.
+    validations:
+      required: false

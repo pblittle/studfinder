@@ -7,12 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and `SECURITY.md`, plus issue forms and a
+  pull request template ([#13])
+- `.github/dependabot.yml`, enabling weekly cargo and GitHub Actions version updates
+  rather than security updates alone ([#13])
+- Package metadata in `Cargo.toml`: description, license, repository, readme,
+  keywords, and categories ([#13])
+
 ### Changed
 
 - CI: replaced the archived `actions-rs/toolchain` action with `dtolnay/rust-toolchain`,
   bumped `actions/checkout` and `actions/cache` to v4, and added `--locked` so CI fails
   when `Cargo.lock` is out of sync with `Cargo.toml` instead of silently re-resolving
   it ([#10])
+
+### Fixed
+
+- README listed SQLite3 as a prerequisite, but `rusqlite`'s `bundled` feature compiles
+  SQLite in, so no system install is needed ([#13])
 
 ### Removed
 
@@ -83,3 +97,4 @@ First tagged release.
 [#10]: https://github.com/pblittle/studfinder/pull/10
 [#11]: https://github.com/pblittle/studfinder/pull/11
 [#12]: https://github.com/pblittle/studfinder/pull/12
+[#13]: https://github.com/pblittle/studfinder/pull/13
