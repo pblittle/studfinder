@@ -35,7 +35,7 @@ body:
       label: Image details
       description: >
         If a specific image triggers this, its dimensions, format, and dominant
-        colour are usually more useful than the file itself.
+        color are usually more useful than the file itself.
     validations:
       required: false
 

@@ -45,6 +45,6 @@ optional, so `fix(scanner): ...` and `fix: ...` are both fine.
 
 Open an issue with the command you ran, what you expected, and what actually
 happened. If it involves a specific image, describing its size and dominant
-colour usually matters more than the file itself.
+color usually matters more than the file itself.
 
 For anything security-related, see [SECURITY.md](SECURITY.md) instead.
