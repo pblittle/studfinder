@@ -13,7 +13,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -46,7 +46,7 @@ jobs:
   lint-all:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -75,7 +75,7 @@ jobs:
   security-audit:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
