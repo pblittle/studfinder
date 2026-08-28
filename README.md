@@ -3,16 +3,32 @@
 [![Rust CI](https://github.com/pblittle/studfinder/actions/workflows/rust.yml/badge.svg)](https://github.com/pblittle/studfinder/actions/workflows/rust.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A vision-based LEGO piece identification and cataloging tool that scans and identifies LEGO pieces using computer vision.
+A LEGO piece identification and cataloging tool that scans images and records what it
+finds in a local inventory.
+
+## Project status
+
+Early, and parts of the pipeline are still placeholders. What works today:
+
+- Color identification, against six primary colors (red, green, blue, yellow, white, black)
+- A local SQLite inventory, batch directory scanning, and JSON/CSV import and export
+
+What does not work yet is **part identification**. Both processors return a hardcoded
+part number (`3001`), so every scan reports the same piece regardless of the image, and
+the category is always `Brick`. Shape analysis and template matching are stubs. See
+[#21](https://github.com/pblittle/studfinder/issues/21).
+
+Color is the only field you should trust today.
 
 ## Features
 
-- **Image-based LEGO piece identification**: Analyze images to identify LEGO pieces by color and shape
-- **Multiple processing strategies**: Choose between Scanner (color-based) and Detector (template matching) approaches
+- **Image-based color identification**: Analyze images to identify LEGO pieces by color
+- **Multiple processing strategies**: Choose between Scanner and Detector; both do color
+  analysis today, and Detector is where template matching is intended to live ([#21])
 - **Local inventory management**: Store and manage your LEGO collection in a local SQLite database
 - **Batch directory processing**: Process multiple images at once
 - **Export/import inventory**: Support for JSON and CSV formats
-- **Color detection**: Identify LEGO colors with configurable standards (BrickLink or LEGO official)
+- **Color detection**: Identify six primary colors, named per BrickLink or LEGO official convention
 - **Configurable scan quality**: Balance between speed and accuracy with Fast, Balanced, or Accurate modes
 - **Robust error handling**: Comprehensive error types and context-rich error messages
 
@@ -131,7 +147,7 @@ Studfinder follows a modular architecture organized into three main modules:
 
   - `processor.rs`: Defines the `ImageProcessor` trait
   - `scanner.rs`: Color-based processor implementation
-  - `detector.rs`: Template-matching processor implementation
+  - `detector.rs`: Intended home for template matching; currently color-based ([#21])
   - `color.rs`: Color detection and analysis
 
 - **storage**: Persistence layer
@@ -158,9 +174,9 @@ pub trait ImageProcessor: Send + Sync {
 
 Two implementations are provided:
 
-1. **Scanner**: A color-based processor that analyzes the dominant colors in an image to identify LEGO pieces. Configurable with different quality levels (Fast, Balanced, Accurate).
+1. **Scanner**: A color-based processor that analyzes the average color of an image to identify LEGO pieces. Configurable with different quality levels (Fast, Balanced, Accurate), which set the color threshold and the minimum accepted confidence.
 
-2. **Detector**: A template-matching processor that uses reference images to identify specific LEGO piece shapes. Uses a confidence threshold to determine matches.
+2. **Detector**: Intended to be a template-matching processor that uses reference images to identify piece shapes. Today it runs the same color analysis as Scanner and returns a fixed part number; the template map it builds is never consulted ([#21]). Uses a confidence threshold to determine matches.
 
 The implementation can be selected via configuration:
 
@@ -175,12 +191,19 @@ let config = Config {
 
 ### Color Detection
 
-The `ColorDetector` component provides color analysis with support for different color standards:
+The `ColorDetector` component averages every pixel in the image and classifies that mean
+RGB value against six primary colors: red, green, blue, yellow, white, and black. Anything
+it cannot place returns `Unknown`. There is no segmentation, so a piece photographed against
+a contrasting background is averaged together with that background.
+
+Two naming conventions are available:
 
 - **BrickLink**: Uses BrickLink's color naming convention
 - **LEGO Official**: Uses LEGO's official color naming convention
 
-Color detection includes confidence scoring based on color purity and matching against known LEGO colors.
+The two standards currently differ only in the names returned; the underlying thresholds are
+the same. Confidence scoring is based on color purity, that is, how far the dominant channel
+sits above the others.
 
 ### Storage
 
@@ -234,3 +257,5 @@ a public issue.
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 Copyright (c) 2025 P. Barrett Little
+
+[#21]: https://github.com/pblittle/studfinder/issues/21
