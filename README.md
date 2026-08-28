@@ -16,7 +16,7 @@ A vision-based LEGO piece identification and cataloging tool that scans and iden
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/studfinder.git
+git clone https://github.com/pblittle/studfinder.git
 cd studfinder
 make install
 ```
@@ -49,7 +49,6 @@ studfinder inventory import pieces.json
 
 - Rust 1.70+
 - SQLite3
-- ImageMagick (for tests)
 
 ### Setup Development Environment
 
@@ -107,13 +106,7 @@ studfinder --verbose [command]
 ### Testing with Sample Data
 
 ```bash
-# Create test directory
-mkdir test_data
-
-# Create test image
-magick convert -size 200x200 xc:red test_data/test.jpg
-
-# Run test workflow
+# Run the test workflow against the sample image included in the repo
 cargo run -- init
 cargo run -- scan test_data/test.jpg
 cargo run -- inventory list
