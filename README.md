@@ -6,25 +6,26 @@
 A LEGO piece identification and cataloging tool that scans images and records what it
 finds in a local inventory.
 
-## Project status
+## Status
 
-Early, and parts of the pipeline are still placeholders. What works today:
+Under active development. Implemented and tested today:
 
-- Color identification, against six primary colors (red, green, blue, yellow, white, black)
-- A local SQLite inventory, batch directory scanning, and JSON/CSV import and export
+- Color identification across six primary colors (red, green, blue, yellow, white, black)
+- A local SQLite inventory with a versioned schema, batch directory scanning, and
+  JSON/CSV import and export
 
-What does not work yet is **part identification**. Both processors return a hardcoded
-part number (`3001`), so every scan reports the same piece regardless of the image, and
-the category is always `Brick`. Shape analysis and template matching are stubs. See
-[#21](https://github.com/pblittle/studfinder/issues/21).
-
-Color is the only field you should trust today.
+Part identification is the current focus and is not yet implemented; `Scanner` and
+`Detector` return a placeholder part number for now. The planned approach is
+dimensional rather than model-based: with a fixed-height camera the mm-per-pixel scale
+is known, and LEGO's 8mm stud pitch makes a piece's measured footprint sufficient to
+identify it. See [#21] for the design.
 
 ## Features
 
 - **Image-based color identification**: Analyze images to identify LEGO pieces by color
-- **Multiple processing strategies**: Choose between Scanner and Detector; both do color
-  analysis today, and Detector is where template matching is intended to live ([#21])
+- **Multiple processing strategies**: Choose between Scanner and Detector, sharing a
+  common `ImageProcessor` trait; both perform color analysis today, with part
+  identification planned ([#21])
 - **Local inventory management**: Store and manage your LEGO collection in a local SQLite database
 - **Batch directory processing**: Process multiple images at once
 - **Export/import inventory**: Support for JSON and CSV formats
@@ -147,7 +148,7 @@ Studfinder follows a modular architecture organized into three main modules:
 
   - `processor.rs`: Defines the `ImageProcessor` trait
   - `scanner.rs`: Color-based processor implementation
-  - `detector.rs`: Intended home for template matching; currently color-based ([#21])
+  - `detector.rs`: Processor slated to carry part identification; color-based today ([#21])
   - `color.rs`: Color detection and analysis
 
 - **storage**: Persistence layer
@@ -176,7 +177,7 @@ Two implementations are provided:
 
 1. **Scanner**: A color-based processor that analyzes the average color of an image to identify LEGO pieces. Configurable with different quality levels (Fast, Balanced, Accurate), which set the color threshold and the minimum accepted confidence.
 
-2. **Detector**: Intended to be a template-matching processor that uses reference images to identify piece shapes. Today it runs the same color analysis as Scanner and returns a fixed part number; the template map it builds is never consulted ([#21]). Uses a confidence threshold to determine matches.
+2. **Detector**: The processor intended to carry part identification. Today it performs the same color analysis as Scanner and returns a placeholder part number, gated behind a configurable confidence threshold. See [#21] for the planned dimensional approach.
 
 The implementation can be selected via configuration:
 
@@ -191,10 +192,11 @@ let config = Config {
 
 ### Color Detection
 
-The `ColorDetector` component averages every pixel in the image and classifies that mean
-RGB value against six primary colors: red, green, blue, yellow, white, and black. Anything
-it cannot place returns `Unknown`. There is no segmentation, so a piece photographed against
-a contrasting background is averaged together with that background.
+The `ColorDetector` component averages the image and classifies the resulting mean RGB
+value against six primary colors: red, green, blue, yellow, white, and black, returning
+`Unknown` when no threshold matches. It assumes the piece fills the frame, so it pairs
+naturally with the calibrated capture setup described in [#21]; segmentation will make it
+robust to mixed backgrounds.
 
 Two naming conventions are available:
 
