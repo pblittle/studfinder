@@ -577,7 +577,10 @@ impl Database {
     }
 }
 
+// `unwrap()` is banned in production code via .clippy.toml, but it is
+// idiomatic in tests -- a panic is the failure signal.
 #[cfg(test)]
+#[allow(clippy::disallowed_methods)]
 mod tests {
     use super::*;
 

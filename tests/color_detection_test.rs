@@ -1,3 +1,7 @@
+// `unwrap()` is banned in production code via .clippy.toml, but it is
+// idiomatic in tests -- a panic is the failure signal.
+#![allow(clippy::disallowed_methods)]
+
 use assert_fs::prelude::*;
 use image::{Rgb, RgbImage};
 use studfinder::{Config, ProcessorType, ScanQuality, StudFinder};
