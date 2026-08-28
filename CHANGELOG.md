@@ -25,13 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- README described shape analysis and template matching as working features. Neither is
-  implemented: both processors return a hardcoded part number, so every scan reports part
-  `3001` in category `Brick`. Added a project status section, corrected the feature and
-  architecture descriptions, and filed [#21] to track the real implementation ([#22])
-- README overstated color detection. It classifies the image's average pixel against six
-  primary colors, and the BrickLink and LEGO Official standards differ only in the names
-  they return ([#22])
+- Aligned the README with the current implementation. Part identification is planned
+  rather than implemented, so shape analysis and template matching are now described as
+  upcoming, and a status section states what is available today ([#21], [#22])
+- Described color detection more precisely: it classifies the image's mean RGB value
+  against six primary colors, and the BrickLink and LEGO Official settings select naming
+  conventions ([#22])
 - README listed SQLite3 as a prerequisite, but `rusqlite`'s `bundled` feature compiles
   SQLite in, so no system install is needed ([#13])
 
@@ -59,9 +58,8 @@ First tagged release.
 ### Added
 
 - Image-based LEGO piece identification, built on an `ImageProcessor` trait with two
-  interchangeable strategies: `Scanner` (color-based) and `Detector` (template matching).
-  Corrected after release: template matching was never implemented, and both strategies
-  return a hardcoded part number ([#21])
+  interchangeable strategies: `Scanner` and `Detector`, both color-based. Part
+  identification is tracked separately in [#21]
 - Color detection with selectable standards (BrickLink or LEGO official) and
   confidence scoring based on color purity
 - Configurable scan quality: Fast, Balanced, Accurate
